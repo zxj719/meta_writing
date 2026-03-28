@@ -1,0 +1,22 @@
+hook: 她能听见落叶的时间、眼泪的重量、没说出口的话——但没有人能听见她
+genre: 都市异能
+target_satisfaction_type: 情感共鸣、真相揭示、微妙联结
+world_layers:
+- name: 表层世界
+  description: 南方潮湿的二线城市，旧城区与新开发区并存。夏浮在一家独立书店打工，过着安静到近乎透明的生活。
+  revealed_in_chapter: 1
+- name: 规则层
+  description: 极少数人拥有'微感'——微小到几乎无法被察觉的感知异能。不是超能力，更像是一种多出来的感官，多数时候是负担而非天赋。拥有微感的人彼此并不知道对方的存在。
+  revealed_in_chapter: 2
+- name: 禁忌层
+  description: 微感无法关闭。它会在最不合时宜的时刻涌入——葬礼上听见死者最后的遗憾，地铁里听见陌生人咽下去的哭声。拥有微感的人大多学会了沉默，因为说出来只会被当作异类。
+  revealed_in_chapter: 4
+- name: 真相层
+  description: 夏浮听见的'声音'不是幻觉——每个物体都在记录自己的经历，时间在万物上留下痕迹。石头记得溪水，门记得推开，毛衣记得织它的手。听觉型微感者听见这些痕迹化为声音，视觉型微感者看见它们化为温度。两种感知互补时，物体的完整记忆才能被呈现。
+  revealed_in_chapter: 7
+- name: 本质层
+  description: 所有留不住的东西，都在试图被记住。夏浮是听众，温野是目击者——当声音与画面合一，那些记忆才终于有了完整的形状。声音博物馆不只是一个展览，是两个孤独的人第一次让世界听见了它自己。
+  revealed_in_chapter: null
+foreshadowing_max_age_chapters: 15
+total_planned_chapters: 30
+current_chapter: 5

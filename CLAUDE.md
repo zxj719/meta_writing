@@ -1,5 +1,41 @@
 # Claude Configuration
 
+## Project: meta_writing
+
+Multi-agent Chinese web novel generation system. 3 MVP agents (Planner + Writer + Continuity) with shared Story Bible memory layer.
+
+### Architecture
+
+- `meta_writing/llm.py` — Anthropic API wrapper with retry logic
+- `meta_writing/orchestrator.py` — Pipeline controller (plan → write → review → commit)
+- `meta_writing/agents/` — Planner (Opus), Writer (Sonnet), Continuity (Sonnet)
+- `meta_writing/story_bible/` — Schema (Pydantic), Loader (YAML), Compressor (context budget)
+- `meta_writing/vector_store/` — ChromaDB + BGE-M3 for semantic chapter retrieval
+- `meta_writing/cli.py` — Rich CLI (init, generate, status, add-character)
+- `story_data/` — Story Bible YAML files (git-tracked)
+- `chapters/` — Generated chapter text (git-tracked)
+
+### Testing
+
+- Run: `python -m pytest tests/ -v`
+- Framework: pytest + pytest-asyncio
+- All LLM calls are mocked in unit tests
+- Integration tests (real LLM): `python -m pytest -m integration`
+- 47 unit tests covering schema validation, YAML round-trip, compression tiers, agent response parsing, orchestrator pipeline, and chunk splitting
+
+### Key Commands
+
+```bash
+# Activate venv
+source .venv/Scripts/activate
+
+# Run CLI
+meta-writing init              # Initialize a new story
+meta-writing generate          # Generate next chapter
+meta-writing status            # Show Story Bible status
+meta-writing add-character     # Add a character
+```
+
 ## gstack
 
 For all web browsing tasks, use the `/browse` skill from gstack. Never use `mcp__claude-in-chrome__*` tools.

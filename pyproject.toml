@@ -1,0 +1,37 @@
+[project]
+name = "meta-writing"
+version = "0.1.0"
+description = "Multi-agent Chinese web novel generation system with consistency enforcement"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.52.0",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "chromadb>=0.5.0",
+    "sentence-transformers>=3.0",
+    "rich>=13.0",
+    "click>=8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-mock>=3.14",
+]
+
+[project.scripts]
+meta-writing = "meta_writing.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["meta_writing*"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "integration: real LLM integration tests (run manually)",
+]
