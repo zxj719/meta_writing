@@ -19,22 +19,22 @@
   setup_chapter: 2
   payoff_description: ''
   payoff_chapter: null
-  status: planted
-  reinforcement_chapters: []
+  status: active
+  reinforcement_chapters: [6]
   priority: high
 - id: fs_004
   setup_description: 夏浮把听见的声音记在笔记本上，已经攒了十几本——这些笔记本是声音博物馆的原始素材，但她还不知道。
   setup_chapter: 1
   payoff_description: ''
   payoff_chapter: null
-  status: planted
-  reinforcement_chapters: []
+  status: active
+  reinforcement_chapters: [6]
   priority: high
 - id: fs_005
   setup_description: 温野能看见物体上残留的温度痕迹，但他以为只是自己观察力过强——他还不知道这是一种微感。
   setup_chapter: 2
   payoff_description: ''
   payoff_chapter: null
-  status: planted
-  reinforcement_chapters: []
+  status: active
+  reinforcement_chapters: [6]
   priority: normal
