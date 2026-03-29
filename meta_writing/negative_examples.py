@@ -102,6 +102,41 @@ NEGATIVE_EXAMPLES: list[StyleExample] = [
         good="她把一本诗集从第二排挪到第三排，又从第三排挪回来。",
         why="用无意识的重复动作替代'不知道'堆砌",
     ),
+    # --- Structural planning headers in prose ---
+    StyleExample(
+        category="规划标记残留",
+        bad="**节点二：声音博物馆**\n\n夏浮站在供销社门口……",
+        good="夏浮站在供销社门口……",
+        why="**节点X**是规划标记，不是正文——直接输出正文，不留结构标题",
+    ),
+    # --- 刻度 over-reporting ---
+    StyleExample(
+        category="刻度过度汇报",
+        bad="刻度从两升到两点五。……刻度升到三。……刻度从三升到三点五。……刻度回落到三。",
+        good="刻度从两升到三点五。（只记录开章基准和感知峰值，删除中间状态）",
+        why="刻度多于2次成为感知日志，破坏叙事节奏；只写有意义的转折点",
+    ),
+    # --- Short confirmation tics ---
+    StyleExample(
+        category="确认短句口头禅",
+        bad="两。可以。\n\n……稳的。\n\n……还好。",
+        good="两。可以出门了。（全章最多1次独立确认短句，其余融入描写）",
+        why="重复的短确认句产生AI节拍感，像系统报告而非小说叙事",
+    ),
+    # --- Speaking-style meta-commentary ---
+    StyleExample(
+        category="说话方式元注释",
+        bad="他说话的方式是从外部观察往内部描述，慢一点，因为他要把看见的转换成语言。",
+        good="（删除元注释，直接写他说的话和停顿）",
+        why="解释角色说话方式是作者对读者说话，打破叙事沉浸；让对话本身表现节奏",
+    ),
+    # --- Ending structure copy from previous chapter ---
+    StyleExample(
+        category="结尾结构复制",
+        bad="这不是让她安心的想法，也不是让她不安的想法。只是一个新的事实。（与上一章结尾句式完全相同）",
+        good="（用本章独有的意象或场景细节收尾，不复制前章结构）",
+        why="连续两章用相同结尾句式，读者会感到单调；每章结尾需要自己的最终意象",
+    ),
 ]
 
 

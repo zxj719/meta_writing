@@ -89,6 +89,20 @@ _LINE_RULES: list[tuple[str, re.Pattern[str], Severity, str, str]] = [
         '\u201c她不知道\u201d\u2014\u2014全文不宜超过3次',
         '如已超过3次，改为具体的犹豫动作或沉默',
     ),
+    (
+        "structural_header_residue",
+        re.compile(r"\*\*节点[一二三四五六七八九十\d]"),
+        Severity.ERROR,
+        "规划标记残留在正文中——Writer Agent留下的章节结构标记",
+        "删除所有**节点X**格式的标记，这是规划用标记不是正文",
+    ),
+    (
+        "speaking_style_meta",
+        re.compile(r"(他|她)说话的方式是"),
+        Severity.INFO,
+        "说话方式元注释——直接说结果，不解释说话方式",
+        "删除对说话方式的描述，直接写对话或反应",
+    ),
 ]
 
 # Multi-line rules: check patterns that span context or count across the full text.
@@ -100,6 +114,30 @@ _GLOBAL_RULES: list[tuple[str, re.Pattern[str], int, Severity, str, str]] = [
         Severity.WARNING,
         '\u201c她不知道\u201d出现超过3次',
         '保留最有力的2-3处，其余改为动作或删除',
+    ),
+    (
+        "enn_overuse",
+        re.compile(r"\u201c嗯。\u201d"),
+        3,
+        Severity.WARNING,
+        '"嗯。"作为对话回应出现超过3次',
+        "变化对话反应：用动作/沉默/其他短回应替代部分'嗯。'",
+    ),
+    (
+        "scale_reporting_overuse",
+        re.compile(r"刻度(从|是|升|降|回|在|已|到)[^。]{0,15}[。，]"),
+        3,
+        Severity.WARNING,
+        "刻度汇报出现超过3次——变成感知日志而非叙事",
+        "全章最多2次刻度提及（开章确认+关键峰值），删除中间状态汇报",
+    ),
+    (
+        "confirmation_tic",
+        re.compile(r"(?:^|\n)[^。\n]*(?:可以[。。]|稳的[。。])"),
+        2,
+        Severity.INFO,
+        '"可以。"/"稳的。"作为独立确认句出现超过2次',
+        "这类短确认句全章最多1次，其余改为具体的感知描述",
     ),
 ]
 

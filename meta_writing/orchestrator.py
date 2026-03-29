@@ -22,6 +22,7 @@ from typing import Any, Callable, Awaitable
 
 from .agents.continuity import ContinuityAgent, ContinuityResult
 from .agents.planner import PlannerAgent, PlannerResult, PlotBranch
+from .agents.style import StyleAgent, StyleAgentResult
 from .agents.writer import WriterAgent, WriterResult
 from .llm import LLMClient, MODEL_OPUS, MODEL_SONNET
 from .story_bible.compressor import CompressedContext, StoryBibleCompressor
@@ -55,6 +56,7 @@ class PipelineState:
     selected_branch: PlotBranch | None = None
     writer_result: WriterResult | None = None
     continuity_result: ContinuityResult | None = None
+    style_agent_result: StyleAgentResult | None = None
     revision_count: int = 0
     error: str | None = None
 
@@ -90,6 +92,7 @@ class Orchestrator:
         self.planner = PlannerAgent(self.llm, model=planner_model)
         self.writer = WriterAgent(self.llm, model=writer_model)
         self.continuity = ContinuityAgent(self.llm, model=continuity_model)
+        self.style_agent = StyleAgent(self.llm, model=continuity_model)
         self.style_linter = StyleLinter()
 
         self.state = PipelineState()
@@ -187,12 +190,28 @@ class Orchestrator:
             )
             self.state.continuity_result = continuity_result
 
+            # 5c. LLM style review (pacing, tics, echoes)
+            prev_ending = ""
+            if chapter_number > 1:
+                prev_path = self.chapters_dir / f"{chapter_number - 1:03d}.md"
+                if prev_path.exists():
+                    prev_text = prev_path.read_text(encoding="utf-8")
+                    prev_ending = prev_text[-400:] if len(prev_text) > 400 else prev_text
+
+            style_agent_result = await self.style_agent.review(
+                chapter_text=chapter_text,
+                previous_chapter_ending=prev_ending,
+                chapter_number=chapter_number,
+            )
+            self.state.style_agent_result = style_agent_result
+
             has_style_errors = any(
                 i.severity == Severity.ERROR for i in style_issues
             )
 
             if (continuity_result.passed and not continuity_result.has_critical
-                    and not has_style_errors):
+                    and not has_style_errors
+                    and not style_agent_result.has_errors):
                 break
 
             # Revise — combine continuity + style feedback
@@ -202,6 +221,8 @@ class Orchestrator:
                 feedback_parts.append(continuity_result.format_feedback())
             if style_feedback:
                 feedback_parts.append(style_feedback)
+            if style_agent_result.issues:
+                feedback_parts.append(style_agent_result.format_feedback())
             feedback = "\n\n".join(feedback_parts)
 
             revised = await self.writer.revise(
