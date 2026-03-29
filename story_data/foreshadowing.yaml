@@ -1,10 +1,10 @@
 - id: fs_001
   setup_description: 夏浮小时候告诉妈妈'树叶掉下来的时候在叹气'，妈妈带她去看了心理医生。从此她学会了不说。
   setup_chapter: 1
-  payoff_description: ''
-  payoff_chapter: null
-  status: active
-  reinforcement_chapters: [7, 8]
+  payoff_description: ch8夏浮单向陈述（被带去看医生），ch9温野说出同桌故事，夏浮用"你现在问了"完成对等接住，fs_001双向对等完成。
+  payoff_chapter: 9
+  status: paid_off
+  reinforcement_chapters: [7, 8, 9]
   priority: high
 - id: fs_002
   setup_description: 拾光书店的租约即将到期，房东要涨价——这个让夏浮感到安全的地方正在被威胁。
@@ -12,7 +12,7 @@
   payoff_description: ''
   payoff_chapter: null
   status: active
-  reinforcement_chapters: [7]
+  reinforcement_chapters: [7, 9]
   priority: normal
 - id: fs_003
   setup_description: 温野在做一个关于'城市中正在消失的声音'的纪录片——他在用影像做夏浮用耳朵做的事，但两人还不知道。
@@ -20,7 +20,7 @@
   payoff_description: ''
   payoff_chapter: null
   status: active
-  reinforcement_chapters: [6, 7, 8]
+  reinforcement_chapters: [6, 7, 8, 9]
   priority: high
 - id: fs_004
   setup_description: 夏浮把听见的声音记在笔记本上，已经攒了十几本——这些笔记本是声音博物馆的原始素材，但她还不知道。
@@ -28,7 +28,7 @@
   payoff_description: ''
   payoff_chapter: null
   status: active
-  reinforcement_chapters: [6, 7, 8]
+  reinforcement_chapters: [6, 7, 8, 9]
   priority: high
 - id: fs_005
   setup_description: 温野能看见物体上残留的温度痕迹，但他以为只是自己观察力过强——他还不知道这是一种微感。
