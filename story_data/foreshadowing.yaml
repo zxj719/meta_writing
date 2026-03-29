@@ -12,7 +12,7 @@
   payoff_description: ''
   payoff_chapter: null
   status: active
-  reinforcement_chapters: [7, 9]
+  reinforcement_chapters: [7, 9, 10]
   priority: normal
 - id: fs_003
   setup_description: 温野在做一个关于'城市中正在消失的声音'的纪录片——他在用影像做夏浮用耳朵做的事，但两人还不知道。
@@ -20,7 +20,7 @@
   payoff_description: ''
   payoff_chapter: null
   status: active
-  reinforcement_chapters: [6, 7, 8, 9]
+  reinforcement_chapters: [6, 7, 8, 9, 10]
   priority: high
 - id: fs_004
   setup_description: 夏浮把听见的声音记在笔记本上，已经攒了十几本——这些笔记本是声音博物馆的原始素材，但她还不知道。
@@ -28,7 +28,7 @@
   payoff_description: ''
   payoff_chapter: null
   status: active
-  reinforcement_chapters: [6, 7, 8, 9]
+  reinforcement_chapters: [6, 7, 8, 9, 10]
   priority: high
 - id: fs_005
   setup_description: 温野能看见物体上残留的温度痕迹，但他以为只是自己观察力过强——他还不知道这是一种微感。
@@ -36,5 +36,5 @@
   payoff_description: ''
   payoff_chapter: null
   status: active
-  reinforcement_chapters: [6, 7, 8]
+  reinforcement_chapters: [6, 7, 8, 9, 10]
   priority: normal
