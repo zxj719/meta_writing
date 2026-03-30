@@ -21,7 +21,7 @@ state_changes:
 - character: 夏浮
   field: 感知边界意识
   old_value: 记录下来就够了
-  new_value: "以前够，现在不确定"——开始对记录本身的意义产生质疑
+  new_value: '"以前够，现在不确定"——开始对记录本身的意义产生质疑'
 new_information_revealed:
 - 建立"事后拼合"模式：两人错开感知同一空间，时间差反而提供更多时序维度
 - 夏浮感知有时序盲点：声音无法区分先后，需要温度信息补充

@@ -28,6 +28,11 @@ beats:
   description: 秤盘姿势序列还原——"托起、稳住、转腕、轻放"，两种微感合力还原一个人的动作
   delivered: true
 
+- chapter: 11
+  beat_type: medium
+  description: 声音博物馆第一次实操——姿势转译测试第一版，发现"动作位置"vs"动作本身"的核心限制，梁书首次直接目击工作成果
+  delivered: true
+
 hooks:
 - chapter: 1
   hook_type: suspense
@@ -69,6 +74,10 @@ hooks:
   hook_type: suspense
   description: 供销社下个月拆，姿势序列呈现窗口收窄；梁书的打印纸暗示书店危机临近
   position: end
+- chapter: 11
+  hook_type: suspense
+  description: 秤盘内容物成分不明——"如果下次去的时候你能告诉我是什么，那个姿势会更完整"；声音博物馆有了第一版但知道自己还不够
+  position: end
 
 tension_curve:
 - 2.5   # ch1: 安静开篇，夏浮日常与温野出现
@@ -81,3 +90,4 @@ tension_curve:
 - 5.0   # ch8: 粮仓，时差协作，"记下来就够了吗"
 - 6.0   # ch9: fs_001完成，博物馆雏形
 - 6.5   # ch10: 供销社，姿势序列，时限双压
+- 5.5   # ch11: 第一次转译实验，发现限制，梁书目击

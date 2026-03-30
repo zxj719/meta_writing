@@ -11,7 +11,7 @@
   setup_chapter: 1
   payoff_description: ''
   payoff_chapter: null
-  status: active
+  status: reinforced
   reinforcement_chapters: [7, 9, 10]
   priority: normal
 - id: fs_003
@@ -19,7 +19,7 @@
   setup_chapter: 2
   payoff_description: ''
   payoff_chapter: null
-  status: active
+  status: reinforced
   reinforcement_chapters: [6, 7, 8, 9, 10]
   priority: high
 - id: fs_004
@@ -27,7 +27,7 @@
   setup_chapter: 1
   payoff_description: ''
   payoff_chapter: null
-  status: active
+  status: reinforced
   reinforcement_chapters: [6, 7, 8, 9, 10]
   priority: high
 - id: fs_005
@@ -35,6 +35,6 @@
   setup_chapter: 2
   payoff_description: ''
   payoff_chapter: null
-  status: active
+  status: reinforced
   reinforcement_chapters: [6, 7, 8, 9, 10]
   priority: normal

@@ -7,7 +7,7 @@ personality_traits:
 - 对人有一种老练的善意——知道什么时候该问，什么时候该假装没看见
 - 表面大大咧咧，实际上观察力很强
 knowledge_state: 不知道夏浮的能力，但隐约察觉夏浮'能感应到什么'。选择不追问。
-emotional_state: 表面稳定，内部承压。书店租约谈判已进入实质阶段，打印纸/合同已摆在台面中央。对夏浮保持一贯的保护性沉默。
+emotional_state: 表面稳定，内部承压。ch11第一次直接看见夏浮和温野的工作成果（屏幕上的图），选择"你们忙"三字不追问。保护性沉默的边界在扩展：不只保护书店，也保护她们正在尝试的东西。
 relationships:
 - target: 夏浮
   type: 雇主/姐姐般的存在
@@ -24,5 +24,5 @@ motivation_type: emotional
 growth_stage: adapting
 backstory: ''
 first_appearance: 1
-last_active: 10
+last_active: 11
 is_pov: false
