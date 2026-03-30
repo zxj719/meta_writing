@@ -1,3 +1,83 @@
-beats: []
-hooks: []
-tension_curve: []
+beats:
+- chapter: 1
+  beat_type: minor
+  description: 玻璃瓶三下敲击——夏浮第一次感知到他人触碰痕迹，察觉来者不寻常
+  delivered: true
+- chapter: 3
+  beat_type: medium
+  description: 陈招娣故事通过声音/温度双感知还原——两人感知互补的第一次具体验证，"拍裤子"细节命中
+  delivered: true
+- chapter: 4
+  beat_type: medium
+  description: 礼堂过载（刻度7/10）——微感能力代价的极限场景，周伯的离开
+  delivered: true
+- chapter: 6
+  beat_type: medium
+  description: 红星新村协作感知+夏浮说"嗯"——第一次对外承认微感，信任质变起点
+  delivered: true
+- chapter: 7
+  beat_type: medium
+  description: '"我一直以为我只是听力太好"/"我一直以为我只是眼力太好"——互认完成，两人正式确认感知互补'
+  delivered: true
+- chapter: 9
+  beat_type: major
+  description: fs_001对等完成（温野讲同桌故事，夏浮"你现在问了"接住）；声音博物馆功能雏形出现（格式转换）
+  delivered: true
+- chapter: 10
+  beat_type: medium
+  description: 秤盘姿势序列还原——"托起、稳住、转腕、轻放"，两种微感合力还原一个人的动作
+  delivered: true
+
+hooks:
+- chapter: 1
+  hook_type: suspense
+  description: 他会再来吗？玻璃瓶三下声音在她脑中回响，"寻找的频率"
+  position: end
+- chapter: 2
+  hook_type: reversal
+  description: 拍立得照片中夏浮感知到了门的声音；"明天，同一时间，我带你去"
+  position: end
+- chapter: 3
+  hook_type: emotional
+  description: '"名字。照片里没有名字"——感知的边界与命名的缺失，温野的镜头里只有形状'
+  position: end
+- chapter: 4
+  hook_type: suspense
+  description: 礼堂过载余震——底噪持续，微感能力的真实代价悬置
+  position: end
+- chapter: 5
+  hook_type: emotional
+  description: '"我看见的那个温度，和你听见的是同一个人"——互补感知首次言语化确认'
+  position: end
+- chapter: 6
+  hook_type: suspense
+  description: '"你以前有没有遇见过别人也能——"嗯——一字承认，问句永远悬置'
+  position: end
+- chapter: 7
+  hook_type: conflict
+  description: 梁书谈判语调——书店危机隐线加重，租约是否续签未决
+  position: end
+- chapter: 8
+  hook_type: suspense
+  description: '"记下来就够了吗"——夏浮对自己记录习惯的第一次质疑，方向待转'
+  position: end
+- chapter: 9
+  hook_type: reversal
+  description: 声音博物馆功能雏形（格式转换）出现——他们的合作有了具体可能性
+  position: end
+- chapter: 10
+  hook_type: suspense
+  description: 供销社下个月拆，姿势序列呈现窗口收窄；梁书的打印纸暗示书店危机临近
+  position: end
+
+tension_curve:
+- 2.5   # ch1: 安静开篇，夏浮日常与温野出现
+- 3.0   # ch2: 温野视角，初步相遇，约定
+- 4.5   # ch3: 第一次实地协作，陈招娣故事还原
+- 6.5   # ch4: 葬礼礼堂过载，周伯
+- 3.5   # ch5: 恢复期，底噪，低谷节奏
+- 5.0   # ch6: 红星新村，协作深化，嗯
+- 5.5   # ch7: 互认，梁书危机暗线
+- 5.0   # ch8: 粮仓，时差协作，"记下来就够了吗"
+- 6.0   # ch9: fs_001完成，博物馆雏形
+- 6.5   # ch10: 供销社，姿势序列，时限双压
