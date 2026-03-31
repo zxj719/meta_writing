@@ -39,6 +39,10 @@ beats:
   beat_type: minor
   description: 夏浮听出抽屉底部那个'被压住的声音'——它想说但说不出来，只能发出闷闷的、从缝隙里透出来的微弱声音。这个声音比涨租通知和账单更隐秘，更个人，像是梁书压在心底三年没说出口的某句话。
   delivered: true
+- chapter: 14
+  beat_type: minor
+  description: 两人无言的默契——梁书准备热茶等待，夏浮接过但不喝，这种细腻的互动本身就是一种温暖的'爽点'
+  delivered: true
 hooks:
 - chapter: 1
   hook_type: suspense
@@ -92,6 +96,10 @@ hooks:
   hook_type: suspense
   description: 梁书来了，脚步声在后台响起。上一章她说过'帮我把第三层那个盒子拿下来'，这一章她的第一句话会是什么？那个底部被压住的声音究竟是什么——是某封没寄出的信？还是某个无法对人说出口的决定？
   position: end
+- chapter: 14
+  hook_type: emotional
+  description: 梁书的视线在笔记本封皮上停顿，那个封皮上的旧墨渍似乎触动了她某段记忆——她问'你的？'时语调中藏着什么？
+  position: end
 tension_curve:
 - 2.5
 - 3.0
@@ -106,3 +114,4 @@ tension_curve:
 - 5.5
 - 6.5
 - 4.5
+- 3.0

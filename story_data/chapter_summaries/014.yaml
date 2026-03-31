@@ -1,0 +1,35 @@
+chapter_number: 14
+title: 旧笔记本
+summary: 下午两点四十五分，夏浮用后门钥匙进入书店，发现梁书特意在收银台等她。两人默契地沉默，梁书为她准备了热茶。当夏浮拿出那本深蓝色旧笔记本时，梁书的视线在封皮上停留了一下——那个封皮似乎触动了什么。
+events:
+- 夏浮第一次使用后门钥匙进入书店，梁书已在收银台等候
+- 梁书主动为夏浮准备了热茶，用的是后面小屋的旧茶具
+- 梁书表示今天不外出，暗示她特意留在店里等夏浮
+- 夏浮拿出那本深蓝色旧笔记本，封皮有旧墨渍
+- 梁书注意到笔记本封皮，停顿后问'你的？'
+- 夏浮开始翻开笔记本...
+characters_present:
+- 夏浮
+- 梁书
+state_changes:
+- character: 夏浮
+  field: knowledge_state
+  old_value: 通过听纸张声音，得知书店的涨租通知（至少七张，金额递增）、账单（旧账累积）和合同（旧合同待续签/不续签）；感知到梁书三年来独自承担压力的痕迹
+  new_value: 延续上一章：继续通过听觉感知书店的状态；新增：拥有后门钥匙（梁书给的或之前就有的，但梁书没有阻止说明默许）
+- character: 夏浮
+  field: emotional_state
+  old_value: 对梁书的担忧加深（从上一章的隐约察觉到此章的具体感知）；'有了方向但知道限度'的状态延续——她选择不打开抽屉，只是倾听
+  new_value: 担忧加深，'有了方向但知道限度'的状态延续；选择不打开抽屉只是倾听——体现出对梁书的边界感与尊重
+- character: 梁书
+  field: knowledge_state
+  old_value: 不知道夏浮的能力；主动从后门进入（第一次有人知道后门钥匙的存在）
+  new_value: 无更新
+- character: 梁书
+  field: emotional_state
+  old_value: 独自承压三年的状态仍在持续；但从'保护性沉默'到'主动找人帮忙'的转变在此章得到暗示——她允许夏浮进入后门意味着某种信任的开始
+  new_value: 从'保护性沉默'到'主动等人帮忙'的转变得到进一步暗示——她特意留在店里，还准备了茶，说明信任在发展
+new_information_revealed: []
+foreshadowing_planted: []
+foreshadowing_paid_off: []
+pov_character: 夏浮
+word_count: 0
