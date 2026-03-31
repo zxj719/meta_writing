@@ -7,7 +7,7 @@ personality_traits:
 - 对人有一种老练的善意——知道什么时候该问，什么时候该假装没看见
 - 表面大大咧咧，实际上观察力很强
 knowledge_state: 无更新
-emotional_state: 从'保护性沉默'到'主动等人帮忙'的转变得到进一步暗示——她特意留在店里，还准备了茶，说明信任在发展
+emotional_state: 从'保护性沉默'到'主动寻求帮助'的转变进一步确认：推迟谈判说明在处理比房东更紧迫的事；带了凉咖啡但'就是不想喝'暗示某种仪式感或自我惩罚；无名指红痕和后背颤抖说明长期处于高压状态但尚未崩溃；主动说'今天不谈那个'（谈判），转而要求参与展览——在用自己的方式定义优先级
 relationships:
 - target: 夏浮
   type: 雇主/姐姐般的存在
@@ -24,5 +24,5 @@ motivation_type: emotional
 growth_stage: adapting
 backstory: ''
 first_appearance: 1
-last_active: 14
+last_active: 15
 is_pov: false

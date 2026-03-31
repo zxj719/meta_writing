@@ -43,6 +43,10 @@ beats:
   beat_type: minor
   description: 两人无言的默契——梁书准备热茶等待，夏浮接过但不喝，这种细腻的互动本身就是一种温暖的'爽点'
   delivered: true
+- chapter: 15
+  beat_type: minor
+  description: 三人沉默地围坐在桌前，台灯的光把凉咖啡和温咖啡照在一起——某种无声的默契达成，没有言语但位置自己找到了
+  delivered: true
 hooks:
 - chapter: 1
   hook_type: suspense
@@ -100,6 +104,10 @@ hooks:
   hook_type: emotional
   description: 梁书的视线在笔记本封皮上停顿，那个封皮上的旧墨渍似乎触动了她某段记忆——她问'你的？'时语调中藏着什么？
   position: end
+- chapter: 15
+  hook_type: suspense
+  description: 梁书说'今天不谈那个'（房东谈判），转而问温野：'展览的事，能不能给我也讲一遍'——她要进来了，但她准备好了吗？她将以什么方式参与转译？
+  position: end
 tension_curve:
 - 2.5
 - 3.0
@@ -115,3 +123,4 @@ tension_curve:
 - 6.5
 - 4.5
 - 3.0
+- 5.5
