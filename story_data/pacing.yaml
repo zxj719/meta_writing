@@ -41,7 +41,7 @@ beats:
   delivered: true
 - chapter: 14
   beat_type: minor
-  description: 两人无言的默契——梁书准备热茶等待，夏浮接过但不喝，这种细腻的互动本身就是一种温暖的'爽点'
+  description: 夏浮十四本笔记 vs 梁书三本账本——两组数字的交换是本章情感核心；夏浮首次将书店本身作为感知对象巡游，三年工作场所变成有声音的地方；梁书提出秤盘姿势放展览入口，"第一个被记住的是开始"
   delivered: true
 - chapter: 15
   beat_type: minor
@@ -101,8 +101,8 @@ hooks:
   description: 梁书来了，脚步声在后台响起。上一章她说过'帮我把第三层那个盒子拿下来'，这一章她的第一句话会是什么？那个底部被压住的声音究竟是什么——是某封没寄出的信？还是某个无法对人说出口的决定？
   position: end
 - chapter: 14
-  hook_type: emotional
-  description: 梁书的视线在笔记本封皮上停顿，那个封皮上的旧墨渍似乎触动了她某段记忆——她问'你的？'时语调中藏着什么？
+  hook_type: suspense
+  description: '"没有再推的余地了"——明天房东两点来，温野三点来，谈判无可再拖，展览和书店存亡同时进入倒计时'
   position: end
 - chapter: 15
   hook_type: suspense

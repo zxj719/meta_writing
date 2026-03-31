@@ -610,17 +610,25 @@ class AutoRunner:
             active_character_names=selected_branch.characters_involved,
         )
 
-        # --- 3. Write ---
+        # --- 3. Write (retry up to 3 times if empty response) ---
         logger.info("ch%d: writing...", chapter_number)
-        writer_result = await self.writer.write(
-            bible_context=bible_ctx,
-            recent_chapters_text=recent_text,
-            outline=selected_branch.outline,
-            chapter_number=chapter_number,
-            pov_character="夏浮",
-        )
-        chapter_text = writer_result.chapter_text
+        chapter_text = ""
+        for write_attempt in range(3):
+            writer_result = await self.writer.write(
+                bible_context=bible_ctx,
+                recent_chapters_text=recent_text,
+                outline=selected_branch.outline,
+                chapter_number=chapter_number,
+                pov_character="夏浮",
+            )
+            chapter_text = writer_result.chapter_text
+            if chapter_text.strip():
+                break
+            logger.warning("ch%d: write attempt %d returned empty, retrying...", chapter_number, write_attempt + 1)
+            await asyncio.sleep(5)
         logger.info("ch%d: wrote %d chars", chapter_number, len(chapter_text))
+        if not chapter_text.strip():
+            raise RuntimeError(f"ch{chapter_number}: writer returned empty text after 3 attempts")
 
         # --- 4. Review + Revise loop ---
         revision_count = 0

@@ -152,7 +152,7 @@ class ThemeAgent:
             system=THEME_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": "".join(parts)}],
             model=self.model,
-            max_tokens=2048,
+            max_tokens=4096,
             temperature=0.3,
         )
         return self._parse_response(response, str(chapter_number))
@@ -191,7 +191,7 @@ class ThemeAgent:
             system=THEME_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
             model=self.model,
-            max_tokens=3000,
+            max_tokens=4096,
             temperature=0.3,
         )
         return self._parse_response(response, chapter_range)

@@ -133,7 +133,7 @@ class StyleAgent:
             system=STYLE_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
             model=self.model,
-            max_tokens=2048,
+            max_tokens=4096,
             temperature=0.3,
         )
 
