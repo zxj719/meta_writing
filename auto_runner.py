@@ -639,12 +639,12 @@ class AutoRunner:
         continuity_result = None
         linter_issues = []
 
-        # Previous chapter ending for style agent
+        # Previous chapter ending — used by StyleAgent (echo detection) and ThemeAgent (hook contradiction)
         prev_ending = ""
         prev_path = self.chapters_dir / f"{chapter_number - 1:03d}.md"
         if prev_path.exists():
             prev_text = prev_path.read_text(encoding="utf-8")
-            prev_ending = prev_text[-400:]
+            prev_ending = prev_text[-600:]  # longer window for better echo detection
 
         for iteration in range(MAX_REVISIONS):
             logger.info("ch%d: review iteration %d...", chapter_number, iteration + 1)
@@ -658,16 +658,20 @@ class AutoRunner:
                 previous_chapter_ending=prev_ending,
                 chapter_number=chapter_number,
             )
-            # Only run ThemeAgent once (it's expensive and doesn't drive revisions)
+            # ThemeAgent: run once per chapter (expensive), but drives revisions if critical
             if iteration == 0:
                 prev_summary = ""
                 if chapter_number > 1 and (chapter_number - 1) in bible.chapter_summaries:
                     prev_summary = bible.chapter_summaries[chapter_number - 1].summary
+                # Include prev chapter's ending hook to catch hook contradictions
+                prev_hook_ctx = ""
+                if prev_ending:
+                    prev_hook_ctx = f"\n\n## 上一章结尾（检查本章开头是否与之矛盾）\n{prev_ending}"
                 theme_result = await self.theme_agent.review_chapter(
                     chapter_text=chapter_text,
                     chapter_number=chapter_number,
                     previous_chapter_summary=prev_summary,
-                    arc_context=bible_ctx.text[:800],
+                    arc_context=bible_ctx.text[:800] + prev_hook_ctx,
                 )
                 theme_health = theme_result.thematic_health
 
@@ -676,6 +680,7 @@ class AutoRunner:
                 has_errors
                 or (continuity_result and (not continuity_result.passed or continuity_result.has_critical))
                 or (style_result and style_result.has_errors)
+                or (theme_result and theme_result.has_critical)
             )
 
             if not needs_revision:
@@ -696,6 +701,8 @@ class AutoRunner:
                 feedback_parts.append(continuity_result.format_feedback())
             if style_result and style_result.issues:
                 feedback_parts.append(style_result.format_feedback())
+            if theme_result and theme_result.has_critical:
+                feedback_parts.append(theme_result.format_feedback())
             feedback = "\n\n".join(feedback_parts)
 
             logger.info("ch%d: revising (pass %d)...", chapter_number, revision_count)

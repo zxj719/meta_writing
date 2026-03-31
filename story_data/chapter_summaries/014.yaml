@@ -30,12 +30,8 @@ new_information_revealed:
 - 梁书将"第一个被记住的姿势"理解为一种开始的仪式感，这个想法源于书店三年的积累
 - 谈判无法再延期：明天房东两点来，这是最后的节点
 foreshadowing_planted:
-- id: ch14_negotiation_final
-  content: 没有再推的余地了——明天是最后谈判机会
-  planted_in: 14
-  status: active
+- 没有再推的余地了——明天房东两点来，谈判无可再拖
 foreshadowing_paid_off:
-- id: ch13_pushback
-  content: 上一章暗示"推了"一次，本章确认"推了一天"，谈判一再延期的链条收拢
+- 上一章暗示谈判延期，本章确认"推了一天"，延期链条收拢
 pov_character: 夏浮
 word_count: 6347

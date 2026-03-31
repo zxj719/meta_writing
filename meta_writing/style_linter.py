@@ -108,6 +108,22 @@ _LINE_RULES: list[tuple[str, re.Pattern[str], Severity, str, str]] = [
 # Multi-line rules: check patterns that span context or count across the full text.
 _GLOBAL_RULES: list[tuple[str, re.Pattern[str], int, Severity, str, str]] = [
     (
+        "na_zhong_na_zhong",
+        re.compile(r"是那种.{0,30}的那种"),
+        5,
+        Severity.WARNING,
+        '"是那种X的那种Y"嵌套句式出现超过5次——MiniMax最高频散文口头禅，造成节奏麻木',
+        '删除"是那种"/"的那种"框架，改为直接描写：把"那种味道"改写成具体的气味动词',
+    ),
+    (
+        "na_zhong_na_zhong_heavy",
+        re.compile(r"是那种.{0,30}的那种"),
+        8,
+        Severity.ERROR,
+        '"是那种X的那种Y"出现超过8次——严重节奏单调，必须修改',
+        '全章保留≤4处，其余句子改写：去掉"是那种"框架，直接呈现感官细节',
+    ),
+    (
         "she_doesnt_know_overuse",
         re.compile(r"她不知道"),
         3,  # max allowed occurrences
