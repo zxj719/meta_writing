@@ -206,16 +206,16 @@ class ContinuityAgent:
 
     def _parse_response(self, response: LLMResponse) -> ContinuityResult:
         """Parse the JSON response from the continuity review."""
+        import re as _re
         text = response.text
-        # Extract JSON from possible markdown code block
-        if "```json" in text:
-            start = text.index("```json") + 7
-            end = text.index("```", start)
-            text = text[start:end]
-        elif "```" in text:
-            start = text.index("```") + 3
-            end = text.index("```", start)
-            text = text[start:end]
+        # Robust extraction: strip code block first, then find outermost {...}
+        m = _re.search(r"```(?:json)?\s*\n?(.*?)```", text, _re.DOTALL)
+        if m:
+            text = m.group(1).strip()
+        s = text.find("{")
+        e = text.rfind("}") + 1
+        if s != -1 and e > s:
+            text = text[s:e]
 
         try:
             data = json.loads(text.strip())
