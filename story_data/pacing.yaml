@@ -47,6 +47,10 @@ beats:
   beat_type: minor
   description: 三人沉默地围坐在桌前，台灯的光把凉咖啡和温咖啡照在一起——某种无声的默契达成，没有言语但位置自己找到了
   delivered: true
+- chapter: 16
+  beat_type: major
+  description: 夏浮用声音微感"旁观"谈判全程，不是话语而是频率的变化——门板振动→节奏加速→一声确定的"放下"→长沉默。谈判结束，纸上墨水的频率"介于续约和终止之间"，她听不懂。梁书说"先看展览"——这是弧线第一阶段的真正高潮
+  delivered: true
 hooks:
 - chapter: 1
   hook_type: suspense
@@ -108,6 +112,10 @@ hooks:
   hook_type: suspense
   description: 梁书说'今天不谈那个'（房东谈判），转而问温野：'展览的事，能不能给我也讲一遍'——她要进来了，但她准备好了吗？她将以什么方式参与转译？
   position: end
+- chapter: 16
+  hook_type: reversal
+  description: '"谈完了"但没说结果。纸上墨水频率介于续约和终止之间——既不是好消息也不是坏消息。梁书说"先看展览"，把答案推后了。谈判结果悬置，展览变成了唯一的出路。'
+  position: end
 tension_curve:
 - 2.5
 - 3.0
@@ -124,3 +132,4 @@ tension_curve:
 - 4.5
 - 3.0
 - 5.5
+- 7.5

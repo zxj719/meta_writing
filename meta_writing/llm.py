@@ -1,9 +1,14 @@
-"""LLM client wrapper — MiniMax API via Anthropic-compatible endpoint.
+"""LLM client wrappers — MiniMax (Anthropic-compatible) and DeepSeek (OpenAI-compatible).
 
 Centralizes model selection, retry logic, and token tracking.
-Uses MiniMax's Anthropic-compatible endpoint at https://api.minimaxi.com/anthropic
-- Planner: MiniMax-M2.7 (complex reasoning, ~60 tps)
-- Writer/Continuity: MiniMax-M2.7-highspeed (fast, ~100 tps)
+
+MiniMax endpoint: https://api.minimaxi.com/anthropic (Anthropic SDK)
+DeepSeek endpoint: https://api.deepseek.com (OpenAI SDK)
+
+Agent→model recommendations:
+- Planner: Claude (best narrative planning) or DeepSeek-reasoner (strong logic)
+- Writer: DeepSeek-chat (clean Chinese prose, less tics) or MiniMax (fast)
+- Continuity/Style/Theme: MiniMax or DeepSeek-chat (cost-effective review)
 """
 
 from __future__ import annotations
@@ -17,10 +22,15 @@ import anthropic
 
 
 MINIMAX_BASE_URL = "https://api.minimaxi.com/anthropic"
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
 # MiniMax models
 MODEL_OPUS = "MiniMax-M2.7"            # Best reasoning, ~60 tps
 MODEL_SONNET = "MiniMax-M2.7"          # Same model for writer/continuity
+
+# DeepSeek models
+MODEL_DEEPSEEK_CHAT = "deepseek-chat"          # V3 — general + Chinese prose
+MODEL_DEEPSEEK_REASONER = "deepseek-reasoner"  # R1 — chain-of-thought planning
 
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE = 2.0  # seconds
@@ -154,5 +164,71 @@ class LLMClient:
                     await asyncio.sleep(wait)
                 else:
                     raise
+
+        raise last_error  # type: ignore[misc]
+
+
+class DeepSeekClient:
+    """Async wrapper around DeepSeek API (OpenAI-compatible).
+
+    Drop-in replacement for LLMClient — same complete() interface.
+    Uses openai.AsyncOpenAI under the hood.
+    """
+
+    def __init__(self, api_key: str | None = None) -> None:
+        from openai import AsyncOpenAI
+        self.api_key = api_key or os.environ.get("DEEPSEEK_API_KEY", "")
+        self.client = AsyncOpenAI(
+            api_key=self.api_key,
+            base_url=DEEPSEEK_BASE_URL,
+        )
+        self.usage = TokenUsage()
+
+    async def complete(
+        self,
+        system: str,
+        messages: list[dict[str, Any]],
+        model: str = MODEL_DEEPSEEK_CHAT,
+        max_tokens: int = 8192,
+        temperature: float = 0.7,
+    ) -> LLMResponse:
+        """Make a completion request.
+
+        Converts Anthropic-style messages to OpenAI format automatically.
+        The system prompt is prepended as a system-role message.
+        """
+        openai_messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
+        for msg in messages:
+            openai_messages.append({"role": msg["role"], "content": msg["content"]})
+
+        # DeepSeek hard limit is 8192 output tokens
+        max_tokens = min(max_tokens, 8192)
+
+        last_error: Exception | None = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = await self.client.chat.completions.create(
+                    model=model,
+                    messages=openai_messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    stream=False,
+                )
+                text = response.choices[0].message.content or ""
+                usage_data = {
+                    "input_tokens": response.usage.prompt_tokens if response.usage else 0,
+                    "output_tokens": response.usage.completion_tokens if response.usage else 0,
+                }
+                self.usage.add(usage_data)
+                return LLMResponse(
+                    text=text,
+                    usage=usage_data,
+                    model=response.model,
+                    stop_reason=response.choices[0].finish_reason or "",
+                )
+            except Exception as e:
+                last_error = e
+                if attempt < MAX_RETRIES - 1:
+                    await asyncio.sleep(RETRY_BACKOFF_BASE ** (attempt + 1))
 
         raise last_error  # type: ignore[misc]
