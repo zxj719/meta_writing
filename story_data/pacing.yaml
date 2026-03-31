@@ -27,12 +27,14 @@ beats:
   beat_type: medium
   description: 秤盘姿势序列还原——"托起、稳住、转腕、轻放"，两种微感合力还原一个人的动作
   delivered: true
-
 - chapter: 11
   beat_type: medium
   description: 声音博物馆第一次实操——姿势转译测试第一版，发现"动作位置"vs"动作本身"的核心限制，梁书首次直接目击工作成果
   delivered: true
-
+- chapter: 12
+  beat_type: medium
+  description: 梁书说出"房东要涨价"且是"一倍半"时的数字冲击，以及"如果不签——"那半句没说完的停顿，在平静叙述中制造出强烈的压迫感
+  delivered: true
 hooks:
 - chapter: 1
   hook_type: suspense
@@ -78,16 +80,20 @@ hooks:
   hook_type: suspense
   description: 秤盘内容物成分不明——"如果下次去的时候你能告诉我是什么，那个姿势会更完整"；声音博物馆有了第一版但知道自己还不够
   position: end
-
+- chapter: 12
+  hook_type: suspense
+  description: 梁书说"我想在做一个办法"后戛然而止，留下未完的句子——她到底想做什么？涨租背后的真相是否与之前的线索（秤盘、供销社、涨租通知）有关联？
+  position: end
 tension_curve:
-- 2.5   # ch1: 安静开篇，夏浮日常与温野出现
-- 3.0   # ch2: 温野视角，初步相遇，约定
-- 4.5   # ch3: 第一次实地协作，陈招娣故事还原
-- 6.5   # ch4: 葬礼礼堂过载，周伯
-- 3.5   # ch5: 恢复期，底噪，低谷节奏
-- 5.0   # ch6: 红星新村，协作深化，嗯
-- 5.5   # ch7: 互认，梁书危机暗线
-- 5.0   # ch8: 粮仓，时差协作，"记下来就够了吗"
-- 6.0   # ch9: fs_001完成，博物馆雏形
-- 6.5   # ch10: 供销社，姿势序列，时限双压
-- 5.5   # ch11: 第一次转译实验，发现限制，梁书目击
+- 2.5
+- 3.0
+- 4.5
+- 6.5
+- 3.5
+- 5.0
+- 5.5
+- 5.0
+- 6.0
+- 6.5
+- 5.5
+- 6.5

@@ -1,64 +1,92 @@
 - chapter: 1
   description: 夏浮在书店感知旧诗集过载；温野第一次进拾光书店，在旧书架前感知热量痕迹；玻璃瓶三下敲击，夏浮听见他留下的频率；梁书姐接到房管所通知
-  characters_involved: [夏浮, 温野, 梁书]
+  characters_involved:
+  - 夏浮
+  - 温野
+  - 梁书
   location: 拾光书店
   significance: 两个微感者第一次在同一空间出现；玻璃瓶成为贯穿全作的联结意象；书店危机种下
-
 - chapter: 2
   description: 温野在出租屋拍摄即将拆除的旧楼；三次进书店后注意到夏浮；递给她一张老门拍立得照片，约定明天带她去看那扇门
-  characters_involved: [温野, 夏浮]
+  characters_involved:
+  - 温野
+  - 夏浮
   location: 拾光书店, 新城区出租屋
   significance: 温野视觉微感首次呈现；纪录片方向与声音博物馆概念雏形重叠
-
 - chapter: 3
   description: 旺铺招租告示出现；夏浮与温野第一次协作感知陈家老门；老人讲述陈招娣故事，感知还原与现实叙述交汇；"拍裤子"细节命中，两种感知指向同一人
-  characters_involved: [夏浮, 温野, 老人]
+  characters_involved:
+  - 夏浮
+  - 温野
+  - 老人
   location: 旧城区巷子深处, 陈家老门
   significance: 两种感知第一次互补验证；"感知到的只是影子，不是那件事本身"的主题首现
-
 - chapter: 4
   description: 周伯来书店；葬礼礼堂过载事件（刻度7/10），夏浮碰了墙壁声音大量涌入；周伯的离开作为叙事结束
-  characters_involved: [夏浮, 温野, 梁书, 周伯]
+  characters_involved:
+  - 夏浮
+  - 温野
+  - 梁书
+  - 周伯
   location: 拾光书店, 礼堂
   significance: 微感能力的真实代价；过载引入底噪期；周伯故事是世界观"物体记录时间"的完整案例
-
 - chapter: 5
   description: 葬礼后恢复期（底噪持续）；温野带馄饨来访；"我看见的那个温度，和你听见的是同一个人"首次言语化确认互补感知
-  characters_involved: [夏浮, 温野]
+  characters_involved:
+  - 夏浮
+  - 温野
   location: 拾光书店
   significance: fs_001种植层（"学会不说"首次提及）；互补感知从行动验证进入语言确认
-
 - chapter: 6
   description: 葬礼后第五天，温野带夏浮进入红星新村（拆前）；一楼和三楼联合感知，笔记本两栏并列记录；过载升至7.5后夏浮主动剥离撤退；夏浮说"嗯"——第一次对他人承认微感
-  characters_involved: [夏浮, 温野]
+  characters_involved:
+  - 夏浮
+  - 温野
   location: 红星新村废弃老楼
   significance: 实地协作模式确立；"嗯"是信任的质变起点；两栏笔记本记录是声音博物馆呈现形式的雏形
-
 - chapter: 7
   description: '"我一直以为我只是听力太好"/"我一直以为我只是眼力太好"——两人在书店互认感知；书店钥匙串成为互补感知的具象锚点；梁书谈判语调（书店危机隐线加重）'
-  characters_involved: [夏浮, 温野, 梁书]
+  characters_involved:
+  - 夏浮
+  - 温野
+  - 梁书
   location: 拾光书店
   significance: 两人感知正式互认；书店危机从背景推至前景；fs_001第一步铺垫（夏浮单向陈述）
-
 - chapter: 8
   description: 夏浮上午独自去粮仓感知；温野下午独自去补充热量时序；拼合后得出"东先西后"两人轮班结论；粮仓下周动工，第一个显性叙事截止点出现
-  characters_involved: [夏浮, 温野]
+  characters_involved:
+  - 夏浮
+  - 温野
   location: 废弃粮仓
   significance: 时差协作模式建立；感知盲点问题具体化；"记下来就够了吗"质疑记录本身，方向待转
-
 - chapter: 9
   description: 书店"今天的那把"钥匙讨论；温野说出初中同桌故事（fs_001对等层），夏浮用"你现在问了"接住，fs_001双向对等完成；声音博物馆功能雏形出现（格式转换概念）
-  characters_involved: [夏浮, 温野]
+  characters_involved:
+  - 夏浮
+  - 温野
   location: 拾光书店
   significance: fs_001完成是情感核心里程碑；"格式转换"是声音博物馆的第一个具体概念
-
 - chapter: 10
   description: 城西供销社感知：秤盘上姿势序列还原（托起、稳住、转腕、轻放）；楼梯口刻度升至4，夏浮主动停止；供销社下个月拆；梁书打印纸/合同在书店暗示书店危机临近
-  characters_involved: [夏浮, 温野, 梁书]
+  characters_involved:
+  - 夏浮
+  - 温野
+  - 梁书
   location: 城西供销社, 拾光书店
   significance: '"姿势序列"是声音博物馆的具体内容雏形；"还原出来的仍然是描述"是主题深化；书店危机与博物馆建设的时间压力并行'
 - chapter: 11
   description: 声音博物馆第一次实操：温野带便携式显示器，将供销社笔记转译为可视化图形（姿势转译测试第一版）；发现核心限制"动作位置≠动作本身"；梁书看见屏幕选择不追问；温野提出秤盘内容物成分问题，约下次补充
-  characters_involved: [夏浮, 温野, 梁书]
+  characters_involved:
+  - 夏浮
+  - 温野
+  - 梁书
   location: 拾光书店
   significance: 博物馆从概念走向第一次具体实操，同时确认其内在限制；梁书知情但保持保护性沉默，书店危机背景继续积压
+- chapter: 12
+  description: 梁书向前台夏浮和温野坦白书店涨租危机，话说到"想找一个办法"时戛然而止
+  characters_involved:
+  - 梁书
+  - 夏浮
+  - 温野
+  location: 书店前台与后台
+  significance: 梁书三年来首次打破"保护性沉默"，主动向两人透露书店存亡危机。这个开口意味着她的防线正在松动，也意味着她可能需要夏浮和温野的微感能力介入更深层的调查。

@@ -6,8 +6,8 @@ personality_traits:
 - 温暖且健谈，是那种能让任何人放下戒备的人
 - 对人有一种老练的善意——知道什么时候该问，什么时候该假装没看见
 - 表面大大咧咧，实际上观察力很强
-knowledge_state: 不知道夏浮的能力，但隐约察觉夏浮'能感应到什么'。选择不追问。
-emotional_state: 表面稳定，内部承压。ch11第一次直接看见夏浮和温野的工作成果（屏幕上的图），选择"你们忙"三字不追问。保护性沉默的边界在扩展：不只保护书店，也保护她们正在尝试的东西。
+knowledge_state: 不知道夏浮的能力，但隐约察觉夏浮'能感应到什么'。主动向夏浮和温野透露书店租约危机。
+emotional_state: 从"保护性沉默"转变为"主动开口求助"——这是三年来第一次打破沉默直接找人帮忙。表面稳定陈述事实，内部承压到临界点。
 relationships:
 - target: 夏浮
   type: 雇主/姐姐般的存在
@@ -24,5 +24,5 @@ motivation_type: emotional
 growth_stage: adapting
 backstory: ''
 first_appearance: 1
-last_active: 11
+last_active: 12
 is_pov: false
