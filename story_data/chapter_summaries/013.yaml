@@ -1,0 +1,45 @@
+chapter_number: 13
+title: 抽屉里的声音
+summary: 夏浮第一次从后门进入拾光书店，在后台等待梁书时，用能力听见了抽屉里积压的纸张声音——七张涨租通知、账单、旧合同，以及一个被压在最底部听不清楚的声音。她没有打开抽屉，只是将八条声音信息逐一记下，十分钟后梁书到来。
+events:
+- 夏浮用后门钥匙（铜的，有磨损）从窄巷进入书店后台
+- 她用能力感知抽屉里的纸张声音
+- 听到七张涨租通知（金额从四位数到五位数，截止日期逐月排开）
+- 听到账单（数字、日期、金额，已付/欠催标记）
+- 听到合同（装订过的，厚纸，有翻阅痕迹）
+- 感知到一个被压在最底下、说不出来的声音
+- 她选择不打开抽屉，只是记住那些声音
+- 十分钟后梁书从后门进入
+characters_present:
+- 夏浮
+- 梁书
+state_changes:
+- character: 夏浮
+  field: knowledge_state
+  old_value: 已向温野承认微感能力。两人已完成第一次转译实验，发现动作连续性限制。
+  new_value: 通过听纸张声音，得知书店的涨租通知（至少七张，金额递增）、账单（旧账累积）和合同（旧合同待续签/不续签）；感知到梁书三年来独自承担压力的痕迹
+- character: 夏浮
+  field: emotional_state
+  old_value: 从细节（便笺纸、涨租通知、叹气声）感知到梁书的异常和压力。"有了方向但知道限度"的状态延续，同时新增对梁书的担忧。
+  new_value: 对梁书的担忧加深（从上一章的隐约察觉到此章的具体感知）；'有了方向但知道限度'的状态延续——她选择不打开抽屉，只是倾听
+- character: 梁书
+  field: knowledge_state
+  old_value: 不知道夏浮的能力，但隐约察觉夏浮'能感应到什么'。主动向夏浮和温野透露书店租约危机。
+  new_value: 不知道夏浮的能力；主动从后门进入（第一次有人知道后门钥匙的存在）
+- character: 梁书
+  field: emotional_state
+  old_value: 从"保护性沉默"转变为"主动开口求助"——这是三年来第一次打破沉默直接找人帮忙。表面稳定陈述事实，内部承压到临界点。
+  new_value: 独自承压三年的状态仍在持续；但从'保护性沉默'到'主动找人帮忙'的转变在此章得到暗示——她允许夏浮进入后门意味着某种信任的开始
+- character: 温野
+  field: knowledge_state
+  old_value: 已向夏浮承认视觉型微感能力。ch11参与第一次转译实验。秤盘内容物成分待下次补充。
+  new_value: 无更新
+- character: 温野
+  field: emotional_state
+  old_value: '"至少有东西了"的收获感仍在，但面对梁书的危机产生责任感。静默等待，不主动发言。'
+  new_value: 无更新
+new_information_revealed: []
+foreshadowing_planted: []
+foreshadowing_paid_off: []
+pov_character: 夏浮
+word_count: 7917

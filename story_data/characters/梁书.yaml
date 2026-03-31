@@ -6,8 +6,8 @@ personality_traits:
 - 温暖且健谈，是那种能让任何人放下戒备的人
 - 对人有一种老练的善意——知道什么时候该问，什么时候该假装没看见
 - 表面大大咧咧，实际上观察力很强
-knowledge_state: 不知道夏浮的能力，但隐约察觉夏浮'能感应到什么'。主动向夏浮和温野透露书店租约危机。
-emotional_state: 从"保护性沉默"转变为"主动开口求助"——这是三年来第一次打破沉默直接找人帮忙。表面稳定陈述事实，内部承压到临界点。
+knowledge_state: 不知道夏浮的能力；主动从后门进入（第一次有人知道后门钥匙的存在）
+emotional_state: 独自承压三年的状态仍在持续；但从'保护性沉默'到'主动找人帮忙'的转变在此章得到暗示——她允许夏浮进入后门意味着某种信任的开始
 relationships:
 - target: 夏浮
   type: 雇主/姐姐般的存在
@@ -24,5 +24,5 @@ motivation_type: emotional
 growth_stage: adapting
 backstory: ''
 first_appearance: 1
-last_active: 12
+last_active: 13
 is_pov: false
