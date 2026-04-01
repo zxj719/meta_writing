@@ -34,4 +34,4 @@ foreshadowing_paid_off:
 - ch14_negotiation_final 兑现：谈判确实在这一天发生了
 pov_character: 夏浮
 word_count: 10282
-model: deepseek-chat
+model: minimax-m2.7 (deepseek初稿，minimax修订×2)
