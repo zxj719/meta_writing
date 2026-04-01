@@ -1,14 +1,18 @@
-"""LLM client wrappers — MiniMax (Anthropic-compatible) and DeepSeek (OpenAI-compatible).
+"""LLM client wrappers — three backends for the multi-agent pipeline.
 
-Centralizes model selection, retry logic, and token tracking.
+Multi-model routing (recommended):
+  Planner          → ClaudeClient(claude-opus-4-6)   — narrative architecture, editorial judgment
+  Writer           → DeepSeekClient(deepseek-chat)   — clean Chinese prose, low tic rate
+  ThemeAgent       → ClaudeClient(claude-opus-4-6)   — best thematic coherence evaluation
+  ContinuityAgent  → ClaudeClient(claude-sonnet-4-6) — strong narrative continuity
+  StyleAgent       → LLMClient(MiniMax)              — fast, cheap, regex+LLM dual-check
+  BibleUpdater     → DeepSeekClient(deepseek-chat)   — reliable structured JSON
+  LessonExtractor  → DeepSeekClient(deepseek-chat)   — reliable structured JSON
 
-MiniMax endpoint: https://api.minimaxi.com/anthropic (Anthropic SDK)
-DeepSeek endpoint: https://api.deepseek.com (OpenAI SDK)
-
-Agent→model recommendations:
-- Planner: Claude (best narrative planning) or DeepSeek-reasoner (strong logic)
-- Writer: DeepSeek-chat (clean Chinese prose, less tics) or MiniMax (fast)
-- Continuity/Style/Theme: MiniMax or DeepSeek-chat (cost-effective review)
+Endpoints:
+  MiniMax  → https://api.minimaxi.com/anthropic  (Anthropic SDK, MINIMAX_API_KEY)
+  DeepSeek → https://api.deepseek.com            (OpenAI SDK, DEEPSEEK_API_KEY)
+  Claude   → https://api.anthropic.com           (Anthropic SDK, ANTHROPIC_API_KEY)
 """
 
 from __future__ import annotations
@@ -24,13 +28,17 @@ import anthropic
 MINIMAX_BASE_URL = "https://api.minimaxi.com/anthropic"
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
-# MiniMax models
-MODEL_OPUS = "MiniMax-M2.7"            # Best reasoning, ~60 tps
-MODEL_SONNET = "MiniMax-M2.7"          # Same model for writer/continuity
+# MiniMax models (legacy, kept for StyleAgent)
+MODEL_OPUS = "MiniMax-M2.7"
+MODEL_SONNET = "MiniMax-M2.7"
 
 # DeepSeek models
-MODEL_DEEPSEEK_CHAT = "deepseek-chat"          # V3 — general + Chinese prose
-MODEL_DEEPSEEK_REASONER = "deepseek-reasoner"  # R1 — chain-of-thought planning
+MODEL_DEEPSEEK_CHAT = "deepseek-chat"          # V3 — writer + JSON extraction
+MODEL_DEEPSEEK_REASONER = "deepseek-reasoner"  # R1 — heavy reasoning tasks
+
+# Claude models (Anthropic API — editor/reviewer roles)
+MODEL_CLAUDE_OPUS = "claude-opus-4-6"          # Planner + ThemeAgent
+MODEL_CLAUDE_SONNET = "claude-sonnet-4-6"      # ContinuityAgent + fast review
 
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE = 2.0  # seconds
@@ -230,5 +238,76 @@ class DeepSeekClient:
                 last_error = e
                 if attempt < MAX_RETRIES - 1:
                     await asyncio.sleep(RETRY_BACKOFF_BASE ** (attempt + 1))
+
+        raise last_error  # type: ignore[misc]
+
+
+class ClaudeClient:
+    """Async wrapper around the real Anthropic API (claude-opus-4-6 / claude-sonnet-4-6).
+
+    Drop-in replacement for LLMClient — same complete() interface.
+    Used for editor/reviewer roles: Planner, ThemeAgent, ContinuityAgent.
+    Reads ANTHROPIC_API_KEY from environment.
+    """
+
+    def __init__(self, api_key: str | None = None) -> None:
+        import httpx
+        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        self.client = anthropic.AsyncAnthropic(
+            api_key=self.api_key,
+            timeout=httpx.Timeout(600.0, connect=30.0),
+        )
+        self.usage = TokenUsage()
+
+    async def complete(
+        self,
+        system: str,
+        messages: list[dict[str, Any]],
+        model: str = MODEL_CLAUDE_SONNET,
+        max_tokens: int = 8192,
+        temperature: float = 0.7,
+    ) -> LLMResponse:
+        """Make a completion request using the real Anthropic API."""
+        temperature = max(0.0, min(1.0, temperature))
+        last_error: Exception | None = None
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                text = ""
+                async with self.client.messages.stream(
+                    model=model,
+                    system=system,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                ) as stream:
+                    async for _ in stream:
+                        pass
+                    response = await stream.get_final_message()
+
+                for block in response.content:
+                    if block.type == "text":
+                        text += block.text
+
+                usage = {
+                    "input_tokens": response.usage.input_tokens,
+                    "output_tokens": response.usage.output_tokens,
+                }
+                self.usage.add(usage)
+                return LLMResponse(
+                    text=text,
+                    usage=usage,
+                    model=response.model,
+                    stop_reason=response.stop_reason or "",
+                )
+            except (anthropic.RateLimitError, anthropic.APIConnectionError) as e:
+                last_error = e
+                await asyncio.sleep(RETRY_BACKOFF_BASE ** (attempt + 1))
+            except anthropic.APIStatusError as e:
+                if e.status_code >= 500:
+                    last_error = e
+                    await asyncio.sleep(RETRY_BACKOFF_BASE ** (attempt + 1))
+                else:
+                    raise
 
         raise last_error  # type: ignore[misc]

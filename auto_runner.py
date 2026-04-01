@@ -43,7 +43,12 @@ logger = logging.getLogger("auto_runner")
 # ---------------------------------------------------------------------------
 # Imports (after path setup)
 # ---------------------------------------------------------------------------
-from meta_writing.llm import LLMClient, MODEL_SONNET, MODEL_OPUS
+from meta_writing.llm import (
+    LLMClient, DeepSeekClient, ClaudeClient,
+    MODEL_SONNET, MODEL_OPUS,
+    MODEL_DEEPSEEK_CHAT,
+    MODEL_CLAUDE_OPUS, MODEL_CLAUDE_SONNET,
+)
 from meta_writing.agents.planner import PlannerAgent, PlotBranch
 from meta_writing.agents.writer import WriterAgent
 from meta_writing.agents.continuity import ContinuityAgent
@@ -498,21 +503,47 @@ class AutoRunner:
         self.push = push
         self.dry_run = dry_run
 
-        self.llm = LLMClient(api_key=api_key)
         self.loader = StoryBibleLoader(project_dir / "story_data")
         self.compressor = StoryBibleCompressor()
         self.chapters_dir = project_dir / "chapters"
 
-        self.planner = PlannerAgent(self.llm, model=MODEL_OPUS)
-        self.writer = WriterAgent(self.llm, model=MODEL_SONNET)
-        self.continuity_agent = ContinuityAgent(self.llm, model=MODEL_SONNET)
-        self.style_agent = StyleAgent(self.llm, model=MODEL_SONNET)
-        self.theme_agent = ThemeAgent(self.llm, model=MODEL_SONNET)
+        # --- Multi-model routing ---
+        # Claude (Anthropic): editorial roles — Planner, ThemeAgent, ContinuityAgent
+        # Falls back to DeepSeek if ANTHROPIC_API_KEY not set.
+        anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if anthropic_key:
+            claude_llm: LLMClient | ClaudeClient | DeepSeekClient = ClaudeClient(api_key=anthropic_key)
+            planner_model = MODEL_CLAUDE_OPUS
+            review_model_strong = MODEL_CLAUDE_OPUS
+            review_model_fast = MODEL_CLAUDE_SONNET
+            logger.info("Editor role: Claude Opus/Sonnet (Anthropic API)")
+        else:
+            claude_llm = DeepSeekClient()
+            planner_model = MODEL_DEEPSEEK_CHAT
+            review_model_strong = MODEL_DEEPSEEK_CHAT
+            review_model_fast = MODEL_DEEPSEEK_CHAT
+            logger.warning("ANTHROPIC_API_KEY not set — falling back to DeepSeek for editorial roles")
+
+        # DeepSeek: Writer + JSON-extraction (BibleUpdater, LessonAccumulator)
+        deepseek_llm = DeepSeekClient()
+        # MiniMax: StyleAgent (fast, cheap)
+        minimax_llm = LLMClient(api_key=api_key)
+
+        self.planner = PlannerAgent(claude_llm, model=planner_model)
+        self.writer = WriterAgent(deepseek_llm, model=MODEL_DEEPSEEK_CHAT)
+        self.continuity_agent = ContinuityAgent(claude_llm, model=review_model_fast)
+        self.style_agent = StyleAgent(minimax_llm, model=MODEL_SONNET)
+        self.theme_agent = ThemeAgent(claude_llm, model=review_model_strong)
         self.style_linter = StyleLinter()
 
-        self.branch_selector = BranchSelector(self.llm)
-        self.lessons = LessonAccumulator(self.llm)
-        self.bible_updater = BibleUpdater(self.llm, self.loader)
+        self.branch_selector = BranchSelector(claude_llm)
+        self.lessons = LessonAccumulator(deepseek_llm)
+        self.bible_updater = BibleUpdater(deepseek_llm, self.loader)
+
+        # Keep references for usage reporting
+        self._claude_llm = claude_llm
+        self._deepseek_llm = deepseek_llm
+        self._minimax_llm = minimax_llm
 
     def _get_recent_text(self, chapter_number: int, lookback: int = 3) -> str:
         texts = []
@@ -825,7 +856,13 @@ class AutoRunner:
                     f.write(f"\n## ch{ch:02d} — FAILED ({datetime.now().strftime('%H:%M')})\n\n```\n{e}\n```\n")
                 raise  # stop the loop on failure
 
-        logger.info("AutoRunner: all done ✓")
+        # Usage summary across all models
+        logger.info(
+            "AutoRunner done ✓ | Claude: %d/%d tok | DeepSeek: %d/%d tok | MiniMax: %d/%d tok",
+            self._claude_llm.usage.input_tokens, self._claude_llm.usage.output_tokens,
+            self._deepseek_llm.usage.input_tokens, self._deepseek_llm.usage.output_tokens,
+            self._minimax_llm.usage.input_tokens, self._minimax_llm.usage.output_tokens,
+        )
 
 
 # ===========================================================================
