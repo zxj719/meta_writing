@@ -116,6 +116,10 @@ hooks:
   hook_type: reversal
   description: '"谈完了"但没说结果。纸上墨水频率介于续约和终止之间——既不是好消息也不是坏消息。梁书说"先看展览"，把答案推后了。谈判结果悬置，展览变成了唯一的出路。'
   position: end
+- chapter: 17
+  hook_type: revelation
+  description: '"不是声音，是记忆"——梁书演示秤盘姿势时，夏浮感知到了供销社的残影，那个姿势背后有三十七年的身体记忆。梁书与供销社的深层联系开始浮出水面。'
+  position: end
 tension_curve:
 - 2.5
 - 3.0
@@ -133,3 +137,4 @@ tension_curve:
 - 3.0
 - 5.5
 - 7.5
+- 5.5
