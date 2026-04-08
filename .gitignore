@@ -19,12 +19,21 @@ env/
 *.swp
 *.swo
 
+# Test/runtime state
+.pytest_cache/
+.meta-writing/
+
 # ChromaDB vector store
 .chromadb/
 
 # Environment
 .env
 .env.local
+
+# Generated reports/logs
+**/auto_runner_log.md
+**/editorial_report.md
+_planner_result*.json
 
 # OS
 .DS_Store

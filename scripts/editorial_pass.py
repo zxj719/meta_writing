@@ -12,6 +12,7 @@ Output: editorial_report.md
 from __future__ import annotations
 
 import asyncio
+import argparse
 import os
 import sys
 from pathlib import Path
@@ -24,10 +25,10 @@ from meta_writing.llm import LLMClient
 from meta_writing.style_linter import StyleLinter
 from meta_writing.agents.style import StyleAgent
 from meta_writing.agents.theme import ThemeAgent
-
-CHAPTERS_DIR = project_root / "chapters"
-SUMMARIES_DIR = project_root / "story_data" / "chapter_summaries"
-OUTPUT_FILE = project_root / "editorial_report.md"
+from meta_writing.workspace import (
+    ProjectRuntimePaths,
+    resolve_workspace_project_dir,
+)
 
 ARC_CONTEXT = """\
 弧线节奏：孤独→相遇→互补感知→命名声音博物馆→找到呈现方式
@@ -38,17 +39,17 @@ ARC_CONTEXT = """\
 """
 
 
-def load_chapter(num: int) -> str | None:
+def load_chapter(chapters_dir: Path, num: int) -> str | None:
     """Load chapter text by number. Returns None if not found."""
-    path = CHAPTERS_DIR / f"{num:03d}.md"
+    path = chapters_dir / f"{num:03d}.md"
     if not path.exists():
         return None
     return path.read_text(encoding="utf-8")
 
 
-def load_summary(num: int) -> str:
+def load_summary(summaries_dir: Path, num: int) -> str:
     """Load chapter summary YAML as plain text for context."""
-    path = SUMMARIES_DIR / f"{num:03d}.yaml"
+    path = summaries_dir / f"{num:03d}.yaml"
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8")
@@ -68,10 +69,28 @@ def format_linter_issues(issues: list) -> str:
     return "\n".join(lines)
 
 
-async def run_editorial_pass() -> None:
-    api_key = os.environ.get("MINIMAX_API_KEY", "")
+def resolve_editorial_project_dir(
+    workspace_dir: str | Path,
+    project: str | None = None,
+    project_dir: str | Path | None = None,
+    cwd: str | Path | None = None,
+) -> Path:
+    return resolve_workspace_project_dir(
+        workspace_dir=workspace_dir,
+        project=project,
+        project_dir=project_dir,
+        cwd=cwd or Path.cwd(),
+    )
+
+
+async def run_editorial_pass(project_dir: Path) -> None:
+    chapters_dir = project_dir / "chapters"
+    summaries_dir = project_dir / "story_data" / "chapter_summaries"
+    output_file = ProjectRuntimePaths.for_project(project_dir).editorial_report
+
+    api_key = os.environ.get("MINIMAX_API_KEY", "") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
     if not api_key:
-        print("WARNING: MINIMAX_API_KEY not set. LLM calls will fail.", file=sys.stderr)
+        print("WARNING: MiniMax auth token not set. LLM calls will fail.", file=sys.stderr)
 
     llm = LLMClient(api_key=api_key)
     linter = StyleLinter()
@@ -79,7 +98,7 @@ async def run_editorial_pass() -> None:
     theme_agent = ThemeAgent(llm=llm)
 
     # Discover all chapters
-    chapter_files = sorted(CHAPTERS_DIR.glob("*.md"))
+    chapter_files = sorted(chapters_dir.glob("*.md"))
     chapter_numbers = []
     for f in chapter_files:
         try:
@@ -89,7 +108,7 @@ async def run_editorial_pass() -> None:
             continue
 
     if not chapter_numbers:
-        print("No chapters found in", CHAPTERS_DIR, file=sys.stderr)
+        print("No chapters found in", chapters_dir, file=sys.stderr)
         return
 
     print(f"Found {len(chapter_numbers)} chapters: {chapter_numbers}")
@@ -102,7 +121,7 @@ async def run_editorial_pass() -> None:
     # Load all chapter texts
     chapters: dict[int, str] = {}
     for num in chapter_numbers:
-        text = load_chapter(num)
+        text = load_chapter(chapters_dir, num)
         if text:
             chapters[num] = text
 
@@ -122,7 +141,7 @@ async def run_editorial_pass() -> None:
             prev_ending = chapters[prev_num][-300:]
 
         # Get previous chapter summary for theme progression check
-        prev_summary = load_summary(num - 1) if num > 1 else ""
+        prev_summary = load_summary(summaries_dir, num - 1) if num > 1 else ""
 
         # Run StyleLinter (sync, instant)
         linter_issues = linter.check(text)
@@ -234,10 +253,29 @@ async def run_editorial_pass() -> None:
 
     # Write report
     report_text = "\n".join(report_sections)
-    OUTPUT_FILE.write_text(report_text, encoding="utf-8")
-    print(f"\nReport written to: {OUTPUT_FILE}")
+    output_file.write_text(report_text, encoding="utf-8")
+    print(f"\nReport written to: {output_file}")
     print(f"Token usage: {usage.input_tokens:,} in / {usage.output_tokens:,} out")
 
 
 if __name__ == "__main__":
-    asyncio.run(run_editorial_pass())
+    parser = argparse.ArgumentParser(description="Run editorial pass for a novel project")
+    parser.add_argument(
+        "--workspace-dir",
+        default=str(project_root),
+        help="Workspace root containing the novels library (default: repo root)",
+    )
+    parser.add_argument("--project", default=None, help="Novel project name inside the workspace")
+    parser.add_argument("--project-dir", default=None, help="Explicit novel project directory")
+    args = parser.parse_args()
+
+    try:
+        resolved_project_dir = resolve_editorial_project_dir(
+            workspace_dir=args.workspace_dir,
+            project=args.project,
+            project_dir=args.project_dir,
+            cwd=project_root,
+        )
+    except FileNotFoundError as exc:
+        parser.error(str(exc))
+    asyncio.run(run_editorial_pass(resolved_project_dir))

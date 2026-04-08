@@ -28,6 +28,13 @@ import anthropic
 MINIMAX_BASE_URL = "https://api.minimaxi.com/anthropic"
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
+WRITER_PROVIDER_DEEPSEEK = "deepseek"
+WRITER_PROVIDER_MINIMAX = "minimax"
+SUPPORTED_WRITER_PROVIDERS = (
+    WRITER_PROVIDER_DEEPSEEK,
+    WRITER_PROVIDER_MINIMAX,
+)
+
 # MiniMax models (legacy, kept for StyleAgent)
 MODEL_OPUS = "MiniMax-M2.7"
 MODEL_SONNET = "MiniMax-M2.7"
@@ -81,12 +88,22 @@ class LLMResponse:
 class LLMClient:
     """Async wrapper around MiniMax API (Anthropic-compatible) with retry logic."""
 
-    def __init__(self, api_key: str | None = None) -> None:
-        self.api_key = api_key or os.environ.get("MINIMAX_API_KEY", "")
+    def __init__(self, api_key: str | None = None, base_url: str | None = None) -> None:
+        self.api_key = (
+            api_key
+            or os.environ.get("MINIMAX_API_KEY", "")
+            or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
+        )
+        resolved_base_url = (
+            base_url
+            or os.environ.get("MINIMAX_BASE_URL", "")
+            or os.environ.get("ANTHROPIC_BASE_URL", "")
+            or MINIMAX_BASE_URL
+        )
         import httpx
         self.client = anthropic.AsyncAnthropic(
             api_key=self.api_key,
-            base_url=MINIMAX_BASE_URL,
+            base_url=resolved_base_url,
             timeout=httpx.Timeout(600.0, connect=30.0),  # 10 min for long generations
         )
         self.usage = TokenUsage()
@@ -311,3 +328,22 @@ class ClaudeClient:
                     raise
 
         raise last_error  # type: ignore[misc]
+
+
+def normalize_writer_provider(provider: str | None, fallback: str = WRITER_PROVIDER_DEEPSEEK) -> str:
+    """Normalize a writer provider string with a safe fallback."""
+    normalized = (provider or "").strip().lower()
+    if normalized in SUPPORTED_WRITER_PROVIDERS:
+        return normalized
+    return fallback
+
+
+def build_writer_backend(
+    provider: str | None,
+    minimax_api_key: str | None = None,
+):
+    """Return the writer client and model for the requested provider."""
+    resolved = normalize_writer_provider(provider)
+    if resolved == WRITER_PROVIDER_MINIMAX:
+        return LLMClient(api_key=minimax_api_key), MODEL_SONNET
+    return DeepSeekClient(), MODEL_DEEPSEEK_CHAT

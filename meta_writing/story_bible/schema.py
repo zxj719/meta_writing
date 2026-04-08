@@ -240,6 +240,22 @@ class StoryCore(BaseModel):
     total_planned_chapters: Optional[int] = None
     current_chapter: int = Field(default=0, description="Last completed chapter number")
 
+    # Writing preferences
+    chapter_target_chars: Optional[int] = Field(
+        default=None,
+        ge=800,
+        description="Preferred per-chapter target length for this novel",
+    )
+    chapter_min_chars: Optional[int] = Field(
+        default=None,
+        ge=500,
+        description="Minimum chapter length before auto-expansion",
+    )
+    writer_provider: str = Field(
+        default="minimax",
+        description="Preferred writer provider for this novel (deepseek or minimax)",
+    )
+
 
 # --- Full Story Bible (in-memory aggregate) ---
 

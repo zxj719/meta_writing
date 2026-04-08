@@ -18,6 +18,7 @@ from rich.prompt import Prompt, IntPrompt
 from rich.table import Table
 from rich.markdown import Markdown
 
+from .llm import MODEL_SONNET, SUPPORTED_WRITER_PROVIDERS
 from .orchestrator import Orchestrator
 from .story_bible.loader import StoryBibleLoader
 from .story_bible.schema import (
@@ -29,25 +30,127 @@ from .story_bible.schema import (
     StoryCore,
     WorldLayer,
 )
+from .workspace import WorkspaceManager
 
 console = Console()
 
 
 @click.group()
-@click.option("--project-dir", default=".", help="Project directory path")
+@click.option("--project-dir", default=None, help="Explicit novel project directory path")
+@click.option("--project", default=None, help="Novel project name inside the workspace")
+@click.option("--workspace-dir", default=".", help="Workspace root containing the novels library")
 @click.pass_context
-def cli(ctx: click.Context, project_dir: str) -> None:
+def cli(
+    ctx: click.Context,
+    project_dir: str | None,
+    project: str | None,
+    workspace_dir: str,
+) -> None:
     """meta_writing — Multi-agent Chinese web novel generation system."""
     ctx.ensure_object(dict)
-    ctx.obj["project_dir"] = Path(project_dir).resolve()
+    manager = WorkspaceManager(Path(workspace_dir).resolve())
+    ctx.obj["workspace_manager"] = manager
+    ctx.obj["project"] = project
+    try:
+        ctx.obj["project_dir"] = manager.resolve_project_dir(
+            project=project,
+            project_dir=project_dir,
+            cwd=Path.cwd(),
+        )
+    except FileNotFoundError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+def _resolve_loader(ctx: click.Context) -> tuple[Path, StoryBibleLoader]:
+    project_dir: Path = ctx.obj["project_dir"]
+    return project_dir, StoryBibleLoader(project_dir / "story_data")
+
+
+@cli.group()
+def project() -> None:
+    """Manage multiple novel projects."""
+
+
+@project.command("create")
+@click.argument("name")
+@click.option(
+    "--from-project-dir",
+    default=None,
+    help="Optional existing novel project directory to copy from",
+)
+@click.option(
+    "--move-source/--copy-source",
+    default=False,
+    help="Move the imported story files out of the source directory after copying",
+)
+@click.option("--activate/--no-activate", default=True, help="Set as the active project")
+@click.pass_context
+def create_project(
+    ctx: click.Context,
+    name: str,
+    from_project_dir: str | None,
+    move_source: bool,
+    activate: bool,
+) -> None:
+    """Create a new novel project scaffold."""
+    manager: WorkspaceManager = ctx.obj["workspace_manager"]
+    project_dir = manager.create_project(
+        name,
+        source_dir=from_project_dir,
+        move_source=move_source,
+    )
+    if activate:
+        manager.set_current_project(name)
+    console.print(
+        Panel(
+            f"项目已创建: {project_dir}\n当前激活: {'是' if activate else '否'}",
+            style="green",
+        )
+    )
+
+
+@project.command("list")
+@click.pass_context
+def list_projects(ctx: click.Context) -> None:
+    """List known novel projects."""
+    manager: WorkspaceManager = ctx.obj["workspace_manager"]
+    projects = manager.list_projects()
+    if not projects:
+        console.print("未发现项目。")
+        return
+
+    for item in projects:
+        suffix = " (active)" if item.is_active else ""
+        console.print(f"{item.name}{suffix}")
+
+
+@project.command("use")
+@click.argument("name")
+@click.pass_context
+def use_project(ctx: click.Context, name: str) -> None:
+    """Set the active novel project."""
+    manager: WorkspaceManager = ctx.obj["workspace_manager"]
+    manager.set_current_project(name)
+    console.print(f"当前项目已切换到: {name}")
+
+
+@project.command("current")
+@click.pass_context
+def current_project(ctx: click.Context) -> None:
+    """Show the active novel project."""
+    manager: WorkspaceManager = ctx.obj["workspace_manager"]
+    current = manager.get_current_project()
+    if current:
+        console.print(current)
+    else:
+        console.print("当前没有激活项目。")
 
 
 @cli.command()
 @click.pass_context
 def init(ctx: click.Context) -> None:
     """Initialize a new story with StoryCore configuration."""
-    project_dir = ctx.obj["project_dir"]
-    loader = StoryBibleLoader(project_dir / "story_data")
+    project_dir, loader = _resolve_loader(ctx)
 
     console.print(Panel("📖 初始化新故事", style="bold blue"))
 
@@ -62,6 +165,15 @@ def init(ctx: click.Context) -> None:
 
     satisfaction = Prompt.ask("核心爽点类型", default="")
     total_chapters = IntPrompt.ask("计划总章节数", default=100)
+
+    writer_provider = Prompt.ask(
+        "Writer provider",
+        choices=list(SUPPORTED_WRITER_PROVIDERS),
+        default="minimax",
+    )
+    chapter_target_chars = IntPrompt.ask("Target chapter chars", default=2000)
+    default_min_chars = max(800, int(chapter_target_chars * 0.8))
+    chapter_min_chars = IntPrompt.ask("Minimum chars before expansion", default=default_min_chars)
 
     # Foreshadowing config
     genre_defaults = {"玄幻仙侠": 30, "言情": 15, "悬疑推理": 20}
@@ -84,6 +196,9 @@ def init(ctx: click.Context) -> None:
         world_layers=layers,
         foreshadowing_max_age_chapters=max_age,
         total_planned_chapters=total_chapters,
+        chapter_target_chars=chapter_target_chars,
+        chapter_min_chars=chapter_min_chars,
+        writer_provider=writer_provider,
     )
     loader.save_core(core)
     console.print(Panel("✅ 故事核心已保存", style="green"))
@@ -98,7 +213,7 @@ def init(ctx: click.Context) -> None:
 @click.pass_context
 def generate(ctx: click.Context, guidance: str) -> None:
     """Generate the next chapter using the full pipeline."""
-    project_dir = ctx.obj["project_dir"]
+    project_dir: Path = ctx.obj["project_dir"]
 
     async def _run() -> None:
         orch = Orchestrator(project_dir)
@@ -167,8 +282,7 @@ def generate(ctx: click.Context, guidance: str) -> None:
 @click.pass_context
 def status(ctx: click.Context) -> None:
     """Show current Story Bible status."""
-    project_dir = ctx.obj["project_dir"]
-    loader = StoryBibleLoader(project_dir / "story_data")
+    _, loader = _resolve_loader(ctx)
 
     try:
         bible = loader.load()
@@ -220,8 +334,7 @@ def status(ctx: click.Context) -> None:
 @click.pass_context
 def add_character(ctx: click.Context) -> None:
     """Interactively add a character to the Story Bible."""
-    project_dir = ctx.obj["project_dir"]
-    loader = StoryBibleLoader(project_dir / "story_data")
+    _, loader = _resolve_loader(ctx)
     _add_character_interactive(loader)
 
 

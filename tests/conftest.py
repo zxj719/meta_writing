@@ -46,6 +46,9 @@ def sample_core() -> StoryCore:
         foreshadowing_max_age_chapters=20,
         total_planned_chapters=100,
         current_chapter=3,
+        chapter_target_chars=2000,
+        chapter_min_chars=1600,
+        writer_provider="minimax",
     )
 
 

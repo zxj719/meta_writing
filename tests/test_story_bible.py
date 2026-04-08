@@ -54,6 +54,9 @@ class TestStoryCoreSchema:
         assert sample_core.hook == "少年觉醒异能，踏上揭开世界真相的旅途"
         assert sample_core.genre == Genre.URBAN_FANTASY
         assert sample_core.foreshadowing_max_age_chapters == 20
+        assert sample_core.chapter_target_chars == 2000
+        assert sample_core.chapter_min_chars == 1600
+        assert sample_core.writer_provider == "minimax"
 
     def test_missing_hook_rejected(self):
         with pytest.raises(Exception):

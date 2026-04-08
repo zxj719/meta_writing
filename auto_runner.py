@@ -22,7 +22,7 @@ import os
 import re
 import subprocess
 import sys
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -48,9 +48,11 @@ from meta_writing.llm import (
     MODEL_SONNET, MODEL_OPUS,
     MODEL_DEEPSEEK_CHAT,
     MODEL_CLAUDE_OPUS, MODEL_CLAUDE_SONNET,
+    build_writer_backend,
+    normalize_writer_provider,
 )
 from meta_writing.agents.planner import PlannerAgent, PlotBranch
-from meta_writing.agents.writer import WriterAgent
+from meta_writing.agents.writer import MIN_CHAPTER_CHARS, TARGET_CHAPTER_CHARS, WriterAgent
 from meta_writing.agents.continuity import ContinuityAgent
 from meta_writing.agents.style import StyleAgent
 from meta_writing.agents.theme import ThemeAgent
@@ -62,13 +64,132 @@ from meta_writing.story_bible.schema import (
     BeatType, HookType, StoryBible,
 )
 from meta_writing.style_linter import StyleLinter, Severity
+from meta_writing.workspace import (
+    ProjectRuntimePaths,
+    resolve_workspace_project_dir,
+)
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 MAX_REVISIONS = 3
-LEARNED_RULES_FILE = PROJECT_DIR / "learned_rules.md"
-RUN_LOG_FILE = PROJECT_DIR / "auto_runner_log.md"
+
+
+@dataclass(eq=True)
+class CarryoverCorrection:
+    """Latest chapter-level correction that must be enforced next run."""
+
+    chapter_number: int
+    issues_summary: str = ""
+    new_lessons: list[str] = field(default_factory=list)
+
+
+def load_carryover_correction(path: Path) -> CarryoverCorrection | None:
+    """Load the most recent carryover correction state."""
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return CarryoverCorrection(
+        chapter_number=int(data.get("chapter_number", 0)),
+        issues_summary=str(data.get("issues_summary", "")).strip(),
+        new_lessons=[str(rule).strip() for rule in data.get("new_lessons", []) if str(rule).strip()],
+    )
+
+
+def save_carryover_correction(path: Path, correction: CarryoverCorrection | None) -> None:
+    """Persist the latest carryover correction state or clear it when clean."""
+    if correction is None:
+        if path.exists():
+            path.unlink()
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(asdict(correction), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def build_generation_guidance(
+    creator_guidance: str,
+    learned_rules: str,
+    carryover: CarryoverCorrection | None,
+) -> str:
+    """Build planning/writing guidance with last-round corrections first."""
+    parts: list[str] = []
+
+    if carryover and (carryover.issues_summary or carryover.new_lessons):
+        correction_lines = [
+            "## 上一轮必须纠偏的问题",
+            f"- 来自第{carryover.chapter_number}章",
+        ]
+        if carryover.issues_summary:
+            correction_lines.append(carryover.issues_summary.strip())
+        if carryover.new_lessons:
+            correction_lines.append("必须优先遵守：")
+            correction_lines.extend(f"- {rule}" for rule in carryover.new_lessons)
+        correction_lines.append("本章生成前先修正以上问题，再推进剧情。")
+        parts.append("\n".join(correction_lines))
+
+    if creator_guidance and creator_guidance.strip():
+        parts.append(creator_guidance.strip())
+
+    if learned_rules and learned_rules.strip():
+        parts.append(f"## 累积写作规则\n\n{learned_rules.strip()}")
+
+    return "\n\n".join(parts)
+
+
+def should_enable_theme_review(
+    creator_guidance: str,
+    target_satisfaction_type: str,
+) -> bool:
+    """Theme review is only valid for restrained/micro-feel projects.
+
+    ThemeAgent is currently tuned to that literary mode, so for Tomato/system-style
+    projects we skip it instead of learning the wrong rules.
+    """
+    combined = "\n".join(
+        part.strip() for part in (creator_guidance, target_satisfaction_type) if part and part.strip()
+    )
+    markers = ("克制美学", "微感", "留白", "物体记录时间")
+    return any(marker in combined for marker in markers)
+
+
+def resolve_pov_character(bible: StoryBible, branch: PlotBranch) -> str:
+    """Resolve the current POV character from story state or active branch."""
+    for name, character in bible.characters.items():
+        if getattr(character, "is_pov", False):
+            return name
+    if branch.characters_involved:
+        return branch.characters_involved[0]
+    return ""
+
+
+def resolve_runner_project_dir(
+    workspace_dir: str | Path,
+    project: str | None = None,
+    project_dir: str | Path | None = None,
+    cwd: str | Path | None = None,
+) -> Path:
+    """Resolve the novel project directory for AutoRunner."""
+    return resolve_workspace_project_dir(
+        workspace_dir=workspace_dir,
+        project=project,
+        project_dir=project_dir,
+        cwd=cwd or Path.cwd(),
+    )
+
+
+def read_creator_guidance(project_dir: str | Path) -> str:
+    guidance_path = Path(project_dir) / "creator_guidance.md"
+    if not guidance_path.exists():
+        return ""
+    return guidance_path.read_text(encoding="utf-8").strip()
 
 
 # ===========================================================================
@@ -193,7 +314,7 @@ LESSON_EXTRACTOR_PROMPT = """\
 class LessonAccumulator:
     """Accumulates writing lessons across chapters for self-improvement."""
 
-    def __init__(self, llm: LLMClient, rules_file: Path = LEARNED_RULES_FILE) -> None:
+    def __init__(self, llm: LLMClient, rules_file: Path) -> None:
         self.llm = llm
         self.rules_file = rules_file
 
@@ -388,6 +509,7 @@ class BibleUpdater:
                     char.emotional_state = new_es
                 char.last_active = chapter_number
 
+        resolved_pov = str(data.get("pov_character", "")).strip() or resolve_pov_character(bible, branch)
         summary = ChapterSummary(
             chapter_number=chapter_number,
             title=data.get("chapter_title", ""),
@@ -396,7 +518,7 @@ class BibleUpdater:
             characters_present=data.get("characters_present", branch.characters_involved),
             state_changes=state_changes,
             foreshadowing_paid_off=data.get("foreshadowing_paid_off", []),
-            pov_character="夏浮",
+            pov_character=resolved_pov,
             word_count=len(chapter_text),
         )
         bible.chapter_summaries[chapter_number] = summary
@@ -467,6 +589,7 @@ class BibleUpdater:
             chapter_number=chapter_number,
             summary=branch.outline[:150],
             characters_present=branch.characters_involved,
+            pov_character=resolve_pov_character(bible, branch),
             word_count=len(chapter_text),
         )
         bible.core.current_chapter = chapter_number
@@ -498,14 +621,28 @@ class AutoRunner:
         api_key: str,
         push: bool = False,
         dry_run: bool = False,
+        writer_provider: str | None = None,
     ) -> None:
         self.project_dir = project_dir
         self.push = push
         self.dry_run = dry_run
+        self.runtime_paths = ProjectRuntimePaths.for_project(project_dir)
 
         self.loader = StoryBibleLoader(project_dir / "story_data")
         self.compressor = StoryBibleCompressor()
         self.chapters_dir = project_dir / "chapters"
+        self.creator_guidance = read_creator_guidance(project_dir)
+        self._carryover_correction_path = self.project_dir / ".auto_runner_correction.json"
+        core = self.loader.load_core()
+        self.enable_theme_review = should_enable_theme_review(
+            self.creator_guidance,
+            core.target_satisfaction_type if core else "",
+        )
+        self.writer_provider = normalize_writer_provider(
+            writer_provider or (core.writer_provider if core else None),
+        )
+        self.chapter_target_chars = core.chapter_target_chars if core else None
+        self.chapter_min_chars = core.chapter_min_chars if core else None
 
         # --- Multi-model routing ---
         # Claude (Anthropic): editorial roles — Planner, ThemeAgent, ContinuityAgent
@@ -524,20 +661,49 @@ class AutoRunner:
             review_model_fast = MODEL_DEEPSEEK_CHAT
             logger.warning("ANTHROPIC_API_KEY not set — falling back to DeepSeek for editorial roles")
 
-        # DeepSeek: Writer + JSON-extraction (BibleUpdater, LessonAccumulator)
+        # DeepSeek: JSON-extraction (BibleUpdater, LessonAccumulator)
         deepseek_llm = DeepSeekClient()
         # MiniMax: StyleAgent (fast, cheap)
         minimax_llm = LLMClient(api_key=api_key)
+        deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
+        if anthropic_key and not deepseek_key:
+            deepseek_llm = minimax_llm
+        elif deepseek_key:
+            deepseek_llm = DeepSeekClient(api_key=deepseek_key)
+            if not anthropic_key:
+                claude_llm = deepseek_llm
+                planner_model = MODEL_DEEPSEEK_CHAT
+                review_model_strong = MODEL_DEEPSEEK_CHAT
+                review_model_fast = MODEL_DEEPSEEK_CHAT
+                logger.warning("ANTHROPIC_API_KEY not set; falling back to DeepSeek for editorial roles")
+        else:
+            claude_llm = minimax_llm
+            planner_model = MODEL_OPUS
+            review_model_strong = MODEL_OPUS
+            review_model_fast = MODEL_SONNET
+            deepseek_llm = minimax_llm
+            logger.warning("Anthropic/DeepSeek auth not set; falling back to MiniMax for all roles")
+        writer_llm, writer_model = build_writer_backend(
+            self.writer_provider,
+            minimax_api_key=api_key,
+        )
+        if self.writer_provider == "minimax":
+            writer_llm = minimax_llm
+        else:
+            writer_llm = deepseek_llm
 
         self.planner = PlannerAgent(claude_llm, model=planner_model)
-        self.writer = WriterAgent(deepseek_llm, model=MODEL_DEEPSEEK_CHAT)
+        self.writer = WriterAgent(writer_llm, model=writer_model)
         self.continuity_agent = ContinuityAgent(claude_llm, model=review_model_fast)
         self.style_agent = StyleAgent(minimax_llm, model=MODEL_SONNET)
         self.theme_agent = ThemeAgent(claude_llm, model=review_model_strong)
         self.style_linter = StyleLinter()
 
         self.branch_selector = BranchSelector(claude_llm)
-        self.lessons = LessonAccumulator(deepseek_llm)
+        self.lessons = LessonAccumulator(
+            deepseek_llm,
+            rules_file=self.runtime_paths.learned_rules,
+        )
         self.bible_updater = BibleUpdater(deepseek_llm, self.loader)
 
         # Keep references for usage reporting
@@ -552,6 +718,15 @@ class AutoRunner:
             if path.exists():
                 texts.append(f"=== 第{ch}章 ===\n{path.read_text(encoding='utf-8')[-4000:]}")
         return "\n\n".join(texts)
+
+    def _build_guidance(self, learned_rules: str) -> str:
+        """Assemble final guidance with latest carryover correction first."""
+        carryover = load_carryover_correction(self._carryover_correction_path)
+        return build_generation_guidance(
+            creator_guidance=self.creator_guidance,
+            learned_rules=learned_rules,
+            carryover=carryover,
+        )
 
     def _summarize_issues(
         self, linter_issues, continuity_result, theme_result, style_result
@@ -603,6 +778,10 @@ class AutoRunner:
         if learned_rules:
             guidance = f"## 从前几章学到的写作规则\n\n{learned_rules}\n\n请特别注意避免以上问题。"
 
+        if self.creator_guidance:
+            guidance = "\n\n".join(part for part in (self.creator_guidance, guidance) if part)
+
+        guidance = self._build_guidance(learned_rules)
         logger.info("ch%d: planning...", chapter_number)
         plan_result = await self.planner.plan(
             bible_context=bible_ctx,
@@ -640,17 +819,36 @@ class AutoRunner:
             bible, chapter_number,
             active_character_names=selected_branch.characters_involved,
         )
+        pov_character = resolve_pov_character(bible, selected_branch)
 
         # --- 3. Write (retry up to 3 times if empty response) ---
         logger.info("ch%d: writing...", chapter_number)
         chapter_text = ""
         for write_attempt in range(3):
+            if self.chapter_target_chars and self.chapter_min_chars:
+                writer_result = await self.writer.write_with_expansion(
+                    bible_context=bible_ctx,
+                    recent_chapters_text=recent_text,
+                    outline=selected_branch.outline,
+                    chapter_number=chapter_number,
+                    pov_character=pov_character,
+                    min_chars=self.chapter_min_chars,
+                    target_chars=self.chapter_target_chars,
+                    creative_guidance=guidance,
+                )
+                chapter_text = writer_result.chapter_text
+                if chapter_text.strip():
+                    break
+                logger.warning("ch%d: write attempt %d returned empty, retrying...", chapter_number, write_attempt + 1)
+                await asyncio.sleep(5)
+                continue
+
             writer_result = await self.writer.write(
                 bible_context=bible_ctx,
                 recent_chapters_text=recent_text,
                 outline=selected_branch.outline,
                 chapter_number=chapter_number,
-                pov_character="夏浮",
+                pov_character=pov_character,
             )
             chapter_text = writer_result.chapter_text
             if chapter_text.strip():
@@ -664,7 +862,7 @@ class AutoRunner:
         # --- 4. Review + Revise loop ---
         revision_count = 0
         issues_summary = ""
-        theme_health = "healthy"
+        theme_health = "healthy" if self.enable_theme_review else "disabled"
         theme_result = None
         style_result = None
         continuity_result = None
@@ -689,8 +887,8 @@ class AutoRunner:
                 previous_chapter_ending=prev_ending,
                 chapter_number=chapter_number,
             )
-            # ThemeAgent: run once per chapter (expensive), but drives revisions if critical
-            if iteration == 0:
+            # ThemeAgent: only enabled for restrained/micro-feel projects.
+            if self.enable_theme_review and iteration == 0:
                 prev_summary = ""
                 if chapter_number > 1 and (chapter_number - 1) in bible.chapter_summaries:
                     prev_summary = bible.chapter_summaries[chapter_number - 1].summary
@@ -741,6 +939,7 @@ class AutoRunner:
                 chapter_text=chapter_text,
                 feedback=feedback,
                 bible_context=bible_ctx,
+                creative_guidance=guidance,
             )
             chapter_text = revised.chapter_text
 
@@ -752,6 +951,17 @@ class AutoRunner:
             chapter_number=chapter_number,
             issues_summary=issues_summary,
         )
+        if issues_summary or new_lessons:
+            save_carryover_correction(
+                self._carryover_correction_path,
+                CarryoverCorrection(
+                    chapter_number=chapter_number,
+                    issues_summary=issues_summary,
+                    new_lessons=new_lessons,
+                ),
+            )
+        else:
+            save_carryover_correction(self._carryover_correction_path, None)
 
         # --- 6. Save chapter text ---
         chapter_path = self.chapters_dir / f"{chapter_number:03d}.md"
@@ -829,19 +1039,19 @@ class AutoRunner:
         if r.new_lessons:
             lines.append("- 新学规则:\n" + "\n".join(f"  - {l}" for l in r.new_lessons))
 
-        with open(RUN_LOG_FILE, "a", encoding="utf-8") as f:
+        with open(self.runtime_paths.auto_runner_log, "a", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
 
     async def run(self, start: int, end: int) -> None:
         """Run the generation loop from start to end (inclusive)."""
         logger.info("AutoRunner: ch%d → ch%d", start, end)
-        if not LEARNED_RULES_FILE.exists():
-            LEARNED_RULES_FILE.write_text(
+        if not self.runtime_paths.learned_rules.exists():
+            self.runtime_paths.learned_rules.write_text(
                 "# 自动生成学习规则\n\n写作过程中发现的需要避免的模式。\n",
                 encoding="utf-8",
             )
-        if not RUN_LOG_FILE.exists():
-            RUN_LOG_FILE.write_text("# AutoRunner 运行日志\n", encoding="utf-8")
+        if not self.runtime_paths.auto_runner_log.exists():
+            self.runtime_paths.auto_runner_log.write_text("# AutoRunner 运行日志\n", encoding="utf-8")
 
         for ch in range(start, end + 1):
             try:
@@ -852,7 +1062,7 @@ class AutoRunner:
                 )
             except Exception as e:
                 logger.error("ch%d FAILED: %s", ch, e, exc_info=True)
-                with open(RUN_LOG_FILE, "a", encoding="utf-8") as f:
+                with open(self.runtime_paths.auto_runner_log, "a", encoding="utf-8") as f:
                     f.write(f"\n## ch{ch:02d} — FAILED ({datetime.now().strftime('%H:%M')})\n\n```\n{e}\n```\n")
                 raise  # stop the loop on failure
 
@@ -871,6 +1081,26 @@ class AutoRunner:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Autonomous chapter generation loop")
+    parser.add_argument(
+        "--workspace-dir",
+        default=str(PROJECT_DIR),
+        help="Workspace root containing the novels library (default: repo root)",
+    )
+    parser.add_argument(
+        "--project",
+        default=None,
+        help="Novel project name inside the workspace",
+    )
+    parser.add_argument(
+        "--project-dir",
+        default=None,
+        help="Explicit novel project directory",
+    )
+    parser.add_argument(
+        "--writer-provider",
+        default=None,
+        help="Override writer provider for this run (deepseek or minimax)",
+    )
     parser.add_argument("--from", dest="start", type=int, default=None,
                         help="Start chapter (default: current_chapter+1)")
     parser.add_argument("--to", dest="end", type=int, default=20,
@@ -881,20 +1111,35 @@ def main() -> None:
                         help="Plan and select branch only, do not write or commit")
     args = parser.parse_args()
 
-    api_key = os.environ.get("MINIMAX_API_KEY", "")
+    api_key = os.environ.get("MINIMAX_API_KEY", "") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
     if not api_key:
         # Try .env file
         env_path = PROJECT_DIR / ".env"
         if env_path.exists():
             for line in env_path.read_text().splitlines():
-                if line.startswith("MINIMAX_API_KEY="):
+                if line.startswith("MINIMAX_API_KEY=") or line.startswith("ANTHROPIC_AUTH_TOKEN="):
                     api_key = line.split("=", 1)[1].strip()
                     break
     if not api_key:
-        logger.error("MINIMAX_API_KEY not set")
+        logger.error("MiniMax writer auth token not set")
         sys.exit(1)
 
-    runner = AutoRunner(PROJECT_DIR, api_key, push=args.push, dry_run=args.dry_run)
+    try:
+        resolved_project_dir = resolve_runner_project_dir(
+            workspace_dir=args.workspace_dir,
+            project=args.project,
+            project_dir=args.project_dir,
+            cwd=PROJECT_DIR,
+        )
+    except FileNotFoundError as exc:
+        parser.error(str(exc))
+    runner = AutoRunner(
+        resolved_project_dir,
+        api_key,
+        push=args.push,
+        dry_run=args.dry_run,
+        writer_provider=args.writer_provider,
+    )
 
     # Determine start chapter
     start = args.start

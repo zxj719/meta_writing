@@ -23,8 +23,13 @@ from typing import Any, Callable, Awaitable
 from .agents.continuity import ContinuityAgent, ContinuityResult
 from .agents.planner import PlannerAgent, PlannerResult, PlotBranch
 from .agents.style import StyleAgent, StyleAgentResult
-from .agents.writer import WriterAgent, WriterResult
-from .llm import LLMClient, MODEL_OPUS, MODEL_SONNET
+from .agents.writer import (
+    MIN_CHAPTER_CHARS,
+    TARGET_CHAPTER_CHARS,
+    WriterAgent,
+    WriterResult,
+)
+from .llm import LLMClient, MODEL_OPUS, MODEL_SONNET, build_writer_backend
 from .story_bible.compressor import CompressedContext, StoryBibleCompressor
 from .story_bible.loader import StoryBibleLoader
 from .story_bible.schema import ChapterSummary, StoryBible
@@ -76,21 +81,32 @@ class Orchestrator:
         project_dir: str | Path,
         api_key: str | None = None,
         planner_model: str = MODEL_OPUS,
-        writer_model: str = MODEL_SONNET,
+        writer_model: str | None = None,
         continuity_model: str = MODEL_SONNET,
+        writer_provider: str | None = None,
     ) -> None:
         self.project_dir = Path(project_dir)
         self.story_data_dir = self.project_dir / "story_data"
         self.chapters_dir = self.project_dir / "chapters"
+        self.creator_guidance_path = self.project_dir / "creator_guidance.md"
         self.chapters_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize components
         self.llm = LLMClient(api_key=api_key)
         self.loader = StoryBibleLoader(self.story_data_dir)
         self.compressor = StoryBibleCompressor()
+        core = self.loader.load_core()
+        resolved_writer_provider = writer_provider or (core.writer_provider if core else "minimax")
+        writer_llm, auto_writer_model = build_writer_backend(
+            resolved_writer_provider,
+            minimax_api_key=api_key,
+        )
+        if resolved_writer_provider == "minimax":
+            writer_llm = self.llm
+        resolved_writer_model = writer_model or auto_writer_model
 
         self.planner = PlannerAgent(self.llm, model=planner_model)
-        self.writer = WriterAgent(self.llm, model=writer_model)
+        self.writer = WriterAgent(writer_llm, model=resolved_writer_model)
         self.continuity = ContinuityAgent(self.llm, model=continuity_model)
         self.style_agent = StyleAgent(self.llm, model=continuity_model)
         self.style_linter = StyleLinter()
@@ -109,6 +125,16 @@ class Orchestrator:
             if path.exists():
                 texts.append(f"--- 第{ch}章 ---\n{path.read_text(encoding='utf-8')}")
         return "\n\n".join(texts)
+
+    def _load_creator_guidance(self) -> str:
+        if not self.creator_guidance_path.exists():
+            return ""
+        return self.creator_guidance_path.read_text(encoding="utf-8").strip()
+
+    @staticmethod
+    def _merge_guidance(file_guidance: str, inline_guidance: str) -> str:
+        parts = [part.strip() for part in (file_guidance, inline_guidance) if part and part.strip()]
+        return "\n\n".join(parts)
 
     async def generate_chapter(
         self,
@@ -133,6 +159,8 @@ class Orchestrator:
         bible = self.load_bible()
         chapter_number = bible.core.current_chapter + 1
         self.state.chapter_number = chapter_number
+        creator_guidance = self._load_creator_guidance()
+        merged_guidance = self._merge_guidance(creator_guidance, guidance)
 
         recent_text = self.get_recent_chapters_text(chapter_number)
         bible_context = self.compressor.compress(
@@ -145,7 +173,7 @@ class Orchestrator:
             bible_context=bible_context,
             recent_chapters_text=recent_text,
             chapter_number=chapter_number,
-            additional_guidance=guidance,
+            additional_guidance=merged_guidance,
         )
         self.state.planner_result = planner_result
 
@@ -169,6 +197,9 @@ class Orchestrator:
             recent_chapters_text=recent_text,
             outline=selected_branch.outline,
             chapter_number=chapter_number,
+            min_chars=bible.core.chapter_min_chars or MIN_CHAPTER_CHARS,
+            target_chars=bible.core.chapter_target_chars or TARGET_CHAPTER_CHARS,
+            creative_guidance=merged_guidance,
         )
         self.state.writer_result = writer_result
         chapter_text = writer_result.chapter_text
@@ -229,6 +260,7 @@ class Orchestrator:
                 chapter_text=chapter_text,
                 feedback=feedback,
                 bible_context=bible_context,
+                creative_guidance=merged_guidance,
             )
             chapter_text = revised.chapter_text
             self.state.writer_result = revised

@@ -144,6 +144,7 @@ class WriterAgent:
         outline: str,
         chapter_number: int,
         pov_character: str = "",
+        creative_guidance: str = "",
     ) -> WriterResult:
         """Generate a full chapter from an outline.
 
@@ -158,8 +159,15 @@ class WriterAgent:
             WriterResult with the chapter text.
         """
         user_message = self._build_write_prompt(
-            bible_context, recent_chapters_text, outline, chapter_number, pov_character
+            bible_context,
+            recent_chapters_text,
+            outline,
+            chapter_number,
+            pov_character,
+            creative_guidance,
         )
+        if creative_guidance:
+            user_message += f"\n\n## 创作指导\n\n{creative_guidance}"
 
         response = await self.llm.complete(
             system=WRITER_SYSTEM_PROMPT,
@@ -176,6 +184,7 @@ class WriterAgent:
         chapter_text: str,
         feedback: str,
         bible_context: CompressedContext,
+        creative_guidance: str = "",
     ) -> WriterResult:
         """Revise a chapter based on review feedback.
 
@@ -213,6 +222,7 @@ class WriterAgent:
         pov_character: str = "",
         min_chars: int = MIN_CHAPTER_CHARS,
         target_chars: int = TARGET_CHAPTER_CHARS,
+        creative_guidance: str = "",
     ) -> WriterResult:
         """Write a chapter, auto-expanding if below minimum char count.
 
@@ -228,6 +238,7 @@ class WriterAgent:
             outline=outline,
             chapter_number=chapter_number,
             pov_character=pov_character,
+            creative_guidance=creative_guidance,
         )
 
         cn_count = _count_chinese_chars(result.chapter_text)
@@ -243,6 +254,7 @@ class WriterAgent:
             outline=outline,
             bible_context=bible_context,
             target_chars=target_chars,
+            creative_guidance=creative_guidance,
         )
 
         final_count = _count_chinese_chars(expanded.chapter_text)
@@ -255,6 +267,7 @@ class WriterAgent:
         outline: str,
         bible_context: CompressedContext,
         target_chars: int = TARGET_CHAPTER_CHARS,
+        creative_guidance: str = "",
     ) -> WriterResult:
         """Expand a chapter that is too short.
 
@@ -296,6 +309,7 @@ class WriterAgent:
         outline: str,
         chapter_number: int,
         pov_character: str,
+        creative_guidance: str,
     ) -> str:
         parts = [f"## Story Bible上下文\n\n{bible_context.text}"]
 
