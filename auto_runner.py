@@ -64,8 +64,11 @@ from meta_writing.story_bible.schema import (
     BeatType, HookType, StoryBible,
 )
 from meta_writing.style_linter import StyleLinter, Severity
+from meta_writing.prompt_profiles import detect_prompt_profile
 from meta_writing.workspace import (
     ProjectRuntimePaths,
+    WORKFLOW_MODE_MANUAL,
+    read_project_metadata,
     resolve_workspace_project_dir,
 )
 
@@ -148,16 +151,11 @@ def should_enable_theme_review(
     creator_guidance: str,
     target_satisfaction_type: str,
 ) -> bool:
-    """Theme review is only valid for restrained/micro-feel projects.
-
-    ThemeAgent is currently tuned to that literary mode, so for Tomato/system-style
-    projects we skip it instead of learning the wrong rules.
-    """
-    combined = "\n".join(
-        part.strip() for part in (creator_guidance, target_satisfaction_type) if part and part.strip()
-    )
-    markers = ("克制美学", "微感", "留白", "物体记录时间")
-    return any(marker in combined for marker in markers)
+    """Theme review is only valid for restrained/micro-feel projects."""
+    return detect_prompt_profile(
+        creator_guidance=creator_guidance,
+        target_satisfaction_type=target_satisfaction_type,
+    ).theme_review_enabled
 
 
 def resolve_pov_character(bible: StoryBible, branch: PlotBranch) -> str:
@@ -202,7 +200,7 @@ BRANCH_SELECTOR_PROMPT = """\
 ## 选择标准（按优先级）
 
 1. **弧线推进**: 选择让故事在当前阶段自然向前走一步的分支，而不是跳太快或原地踏步
-2. **克制美学**: 优先选择通过具体事件、感知场景、沉默时刻推进关系的分支，而不是情感剖白
+2. **风格一致性**: 优先选择符合当前项目风格说明的分支。番茄快节奏项目优先具体动作、拉扯、笑点/爽点和强情绪推进；克制型项目再优先留白、微感和沉默时刻
 3. **张力节奏**: 根据前几章的张力水平决定是升温还是降温——不要连续多章都是高张力
 4. **伏笔管理**: 如果有即将到期的伏笔，优先选择能自然回收的分支
 5. **新鲜感**: 避免重复上一章的场景结构或意象
@@ -233,6 +231,7 @@ class BranchSelector:
         context_notes: str,
         bible_summary: str,
         chapter_number: int,
+        style_guidance: str = "",
     ) -> tuple[int, str]:
         """Select the best branch. Returns (index, reasoning)."""
         branches_text = "\n\n".join(
@@ -243,10 +242,15 @@ class BranchSelector:
             for i, b in enumerate(branches)
         )
 
+        style_block = ""
+        if style_guidance.strip():
+            style_block = f"**当前项目风格**:\n{style_guidance.strip()[:1200]}\n\n"
+
         user_msg = (
             f"## 第{chapter_number}章分支选择\n\n"
             f"**策划分析**: {context_notes}\n\n"
             f"**当前弧线状态**:\n{bible_summary}\n\n"
+            f"{style_block}"
             f"## 候选分支\n\n{branches_text}\n\n"
             f"请选择最适合第{chapter_number}章的分支。"
         )
@@ -291,7 +295,7 @@ LESSON_EXTRACTOR_PROMPT = """\
 ## 要求
 
 - 每条规则必须具体，不能是泛泛的"要注意X"，要说清楚具体是什么情况触发了什么问题
-- 规则要直接针对这篇小说的风格特点（克制美学/微感描写）
+- 规则要直接针对这篇小说的风格特点（例如番茄快节奏/强情绪，或克制微感/留白）
 - 如果本章没有发现新问题（已有规则覆盖），可以只输出一条加强版的总结
 
 ## 输出格式
@@ -624,6 +628,12 @@ class AutoRunner:
         writer_provider: str | None = None,
     ) -> None:
         self.project_dir = project_dir
+        project_metadata = read_project_metadata(self.project_dir)
+        if project_metadata and project_metadata.workflow_mode == WORKFLOW_MODE_MANUAL:
+            raise ValueError(
+                "This project is configured for manual workflow mode. "
+                "Use meta-writing generate or switch the project to automatic workflow mode first."
+            )
         self.push = push
         self.dry_run = dry_run
         self.runtime_paths = ProjectRuntimePaths.for_project(project_dir)
@@ -634,10 +644,11 @@ class AutoRunner:
         self.creator_guidance = read_creator_guidance(project_dir)
         self._carryover_correction_path = self.project_dir / ".auto_runner_correction.json"
         core = self.loader.load_core()
-        self.enable_theme_review = should_enable_theme_review(
-            self.creator_guidance,
-            core.target_satisfaction_type if core else "",
+        self.prompt_profile = detect_prompt_profile(
+            creator_guidance=self.creator_guidance,
+            target_satisfaction_type=core.target_satisfaction_type if core else "",
         )
+        self.enable_theme_review = self.prompt_profile.theme_review_enabled
         self.writer_provider = normalize_writer_provider(
             writer_provider or (core.writer_provider if core else None),
         )
@@ -788,6 +799,7 @@ class AutoRunner:
             recent_chapters_text=recent_text[-6000:],
             chapter_number=chapter_number,
             additional_guidance=guidance,
+            prompt_profile=self.prompt_profile,
         )
 
         # --- 2. Auto-select branch ---
@@ -797,6 +809,7 @@ class AutoRunner:
             context_notes=plan_result.context_notes,
             bible_summary=arc_summary,
             chapter_number=chapter_number,
+            style_guidance=guidance,
         )
         selected_branch = plan_result.branches[branch_idx]
         logger.info(
@@ -835,6 +848,7 @@ class AutoRunner:
                     min_chars=self.chapter_min_chars,
                     target_chars=self.chapter_target_chars,
                     creative_guidance=guidance,
+                    prompt_profile=self.prompt_profile,
                 )
                 chapter_text = writer_result.chapter_text
                 if chapter_text.strip():
@@ -849,6 +863,7 @@ class AutoRunner:
                 outline=selected_branch.outline,
                 chapter_number=chapter_number,
                 pov_character=pov_character,
+                prompt_profile=self.prompt_profile,
             )
             chapter_text = writer_result.chapter_text
             if chapter_text.strip():
@@ -880,7 +895,10 @@ class AutoRunner:
 
             linter_issues = self.style_linter.check(chapter_text)
             continuity_result = await self.continuity_agent.review(
-                chapter_text, bible_ctx, chapter_number
+                chapter_text,
+                bible_ctx,
+                chapter_number,
+                prompt_profile=self.prompt_profile,
             )
             style_result = await self.style_agent.review(
                 chapter_text=chapter_text,
@@ -940,6 +958,7 @@ class AutoRunner:
                 feedback=feedback,
                 bible_context=bible_ctx,
                 creative_guidance=guidance,
+                prompt_profile=self.prompt_profile,
             )
             chapter_text = revised.chapter_text
 

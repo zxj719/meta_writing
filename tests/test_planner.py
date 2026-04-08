@@ -15,6 +15,7 @@ from meta_writing.agents.planner import (
     _repair_json_string,
 )
 from meta_writing.llm import LLMClient, LLMResponse
+from meta_writing.prompt_profiles import detect_prompt_profile
 from meta_writing.story_bible.compressor import CompressedContext
 
 
@@ -147,6 +148,23 @@ class TestPlannerAgent:
         call_args = mock_llm.complete.call_args
         user_msg = call_args.kwargs["messages"][0]["content"]
         assert "搞笑元素" in user_msg
+
+    @pytest.mark.asyncio
+    async def test_tomato_profile_uses_tomato_system_prompt(self, mock_llm, bible_context):
+        planner = PlannerAgent(mock_llm)
+        await planner.plan(
+            bible_context=bible_context,
+            recent_chapters_text="",
+            chapter_number=4,
+            prompt_profile=detect_prompt_profile(
+                creator_guidance="平台风格：番茄女频，高梗密度，快节奏，系统向",
+                target_satisfaction_type="高梗密度、快节奏、强情绪",
+            ),
+        )
+
+        system_prompt = mock_llm.complete.call_args.kwargs["system"]
+        assert "高梗密度" in system_prompt
+        assert "克制美学" not in system_prompt
 
     @pytest.mark.asyncio
     async def test_parse_failure_triggers_repair_retry(self, bible_context):

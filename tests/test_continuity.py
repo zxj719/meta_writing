@@ -13,6 +13,7 @@ from meta_writing.agents.continuity import (
     IssueType,
 )
 from meta_writing.llm import LLMClient, LLMResponse
+from meta_writing.prompt_profiles import detect_prompt_profile
 from meta_writing.story_bible.compressor import CompressedContext
 
 
@@ -194,3 +195,20 @@ class TestContinuityAgent:
         assert result.passed
         assert len(result.issues) == 1
         assert "解析失败" in result.issues[0].description
+
+    @pytest.mark.asyncio
+    async def test_tomato_profile_omits_microfeel_style_review(self, bible_context):
+        agent = _make_agent(CLEAN_REVIEW)
+        await agent.review(
+            "章节正文...",
+            bible_context,
+            chapter_number=4,
+            prompt_profile=detect_prompt_profile(
+                creator_guidance="平台风格：番茄女频，高梗密度，快节奏，系统向",
+                target_satisfaction_type="高梗密度、快节奏、强情绪",
+            ),
+        )
+
+        system_prompt = agent.llm.complete.call_args.kwargs["system"]
+        assert "微感描写文风" not in system_prompt
+        assert "高梗密度" in system_prompt

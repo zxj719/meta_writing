@@ -140,14 +140,26 @@ NEGATIVE_EXAMPLES: list[StyleExample] = [
 ]
 
 
-def format_examples_for_prompt(max_examples: int = 8) -> str:
+NEGATIVE_EXAMPLE_PROFILES: dict[str, list[StyleExample]] = {
+    "literary_microfeel": NEGATIVE_EXAMPLES,
+}
+
+
+def format_examples_for_prompt(
+    profile_key: str | None = None,
+    max_examples: int = 8,
+) -> str:
     """Format negative examples as a prompt section for the Writer."""
+    examples = NEGATIVE_EXAMPLE_PROFILES.get(profile_key or "", [])
+    if not examples:
+        return ""
+
     lines = [
         "## 已知反模式及修正（从实际编辑中提取）\n",
         "以下是之前章节中被修正的写法。请在写作时避免类似模式：\n",
     ]
 
-    for i, ex in enumerate(NEGATIVE_EXAMPLES[:max_examples], 1):
+    for i, ex in enumerate(examples[:max_examples], 1):
         lines.append(f"### 反模式{i}：{ex.category}")
         lines.append(f"- ❌ 原文：「{ex.bad}」")
         lines.append(f"- ✅ 改为：「{ex.good}」")

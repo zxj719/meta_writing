@@ -12,6 +12,7 @@ from meta_writing.agents.writer import WriterResult
 from meta_writing.llm import LLMResponse
 from meta_writing.orchestrator import Orchestrator, PipelineStage
 from meta_writing.story_bible.loader import StoryBibleLoader
+from meta_writing.workspace import METADATA_FILENAME
 
 
 PLANNER_RESPONSE = json.dumps(
@@ -88,6 +89,15 @@ def _make_response(text: str, model: str = "claude-sonnet-4-6") -> LLMResponse:
 
 @pytest.mark.asyncio
 class TestOrchestrator:
+    async def test_rejects_automatic_workspace_project(self, tmp_project):
+        (tmp_project / METADATA_FILENAME).write_text(
+            '{"name": "book-two", "workflow_mode": "automatic"}',
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ValueError, match="automatic workflow mode"):
+            Orchestrator(tmp_project, api_key="test")
+
     async def test_happy_path(self, tmp_project):
         orch = Orchestrator(tmp_project, api_key="test")
 
@@ -304,8 +314,12 @@ class TestOrchestrator:
         )
 
         planner_guidance = orch.planner.plan.call_args.kwargs["additional_guidance"]
+        planner_profile = orch.planner.plan.call_args.kwargs["prompt_profile"]
         writer_kwargs = orch.writer.write_with_expansion.call_args.kwargs
         assert creative_guidance == planner_guidance
+        assert planner_profile.key == "tomato_romance"
         assert writer_kwargs["creative_guidance"] == creative_guidance
+        assert writer_kwargs["prompt_profile"].key == "tomato_romance"
         assert writer_kwargs["target_chars"] == 2000
         assert writer_kwargs["min_chars"] == 1600
+        assert orch.continuity.review.call_args.kwargs["prompt_profile"].key == "tomato_romance"

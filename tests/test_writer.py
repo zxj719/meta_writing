@@ -9,6 +9,7 @@ import pytest
 from meta_writing.agents.writer import WriterAgent, _count_chinese_chars
 from meta_writing.llm import LLMClient, LLMResponse
 from meta_writing.negative_examples import NEGATIVE_EXAMPLES, format_examples_for_prompt
+from meta_writing.prompt_profiles import detect_prompt_profile
 from meta_writing.story_bible.compressor import CompressedContext
 
 
@@ -112,12 +113,34 @@ class TestWriterAgent:
             recent_chapters_text="",
             outline="大纲",
             chapter_number=4,
+            prompt_profile=detect_prompt_profile(
+                creator_guidance="核心审美：克制美学，强调微感、留白和不解释",
+                target_satisfaction_type="克制美学",
+            ),
         )
 
         call_args = mock_llm.complete.call_args
         user_msg = call_args.kwargs["messages"][0]["content"]
         assert "反模式" in user_msg
         assert "沙发记得" in user_msg
+
+    @pytest.mark.asyncio
+    async def test_tomato_profile_omits_literary_negative_examples(self, mock_llm, bible_context):
+        writer = WriterAgent(mock_llm)
+        await writer.write(
+            bible_context=bible_context,
+            recent_chapters_text="",
+            outline="大纲",
+            chapter_number=4,
+            prompt_profile=detect_prompt_profile(
+                creator_guidance="平台风格：番茄女频，高梗密度，快节奏，系统向",
+                target_satisfaction_type="高梗密度、快节奏、强情绪",
+            ),
+        )
+
+        call_args = mock_llm.complete.call_args
+        user_msg = call_args.kwargs["messages"][0]["content"]
+        assert "沙发记得" not in user_msg
 
     @pytest.mark.asyncio
     async def test_creative_guidance_in_prompt(self, mock_llm, bible_context):
@@ -220,11 +243,17 @@ class TestNegativeExamples:
             assert ex.why
 
     def test_format_examples_contains_bad_and_good(self):
-        text = format_examples_for_prompt(max_examples=3)
+        text = format_examples_for_prompt(
+            profile_key="literary_microfeel",
+            max_examples=3,
+        )
         assert "❌" in text
         assert "✅" in text
         assert "反模式" in text
 
     def test_format_examples_respects_max(self):
-        text = format_examples_for_prompt(max_examples=2)
+        text = format_examples_for_prompt(
+            profile_key="literary_microfeel",
+            max_examples=2,
+        )
         assert text.count("### 反模式") == 2

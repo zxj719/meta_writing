@@ -8,7 +8,9 @@ import pytest
 from auto_runner import (
     AutoRunner,
     BibleUpdater,
+    BranchSelector,
     CarryoverCorrection,
+    LESSON_EXTRACTOR_PROMPT,
     build_generation_guidance,
     load_carryover_correction,
     resolve_pov_character,
@@ -17,6 +19,7 @@ from auto_runner import (
 )
 from meta_writing.agents.planner import PlannerResult, PlotBranch
 from meta_writing.agents.writer import WriterResult
+from meta_writing.workspace import METADATA_FILENAME
 
 
 def test_carryover_correction_round_trip(tmp_path: Path) -> None:
@@ -109,6 +112,54 @@ def test_resolve_pov_character_prefers_story_bible_pov(sample_bible) -> None:
     assert resolve_pov_character(sample_bible, branch) == "林越"
 
 
+def test_lesson_extractor_prompt_is_project_agnostic() -> None:
+    assert "克制美学/微感描写" not in LESSON_EXTRACTOR_PROMPT
+    assert "例如番茄快节奏/强情绪，或克制微感/留白" in LESSON_EXTRACTOR_PROMPT
+
+
+def test_auto_runner_rejects_manual_workspace_project(tmp_project: Path) -> None:
+    (tmp_project / METADATA_FILENAME).write_text(
+        '{"name": "book-two", "workflow_mode": "manual"}',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="manual workflow mode"):
+        AutoRunner(tmp_project, api_key="test", dry_run=True)
+
+
+@pytest.mark.asyncio
+async def test_branch_selector_receives_project_style_guidance() -> None:
+    llm = MagicMock()
+    llm.complete = AsyncMock(
+        return_value=MagicMock(text='{"selected_index": 0, "reasoning": "ok"}')
+    )
+    selector = BranchSelector(llm)
+    branch = PlotBranch(
+        title="鍒嗘敮A",
+        outline="鍐欎竴涓暀瀹ら噷鐨勫揩鑺傚鎷夋壇鍦烘櫙",
+        characters_involved=["鏋楄秺", "鑻忔櫞"],
+        consequences="",
+        foreshadowing_opportunities=[],
+        satisfaction_type="minor",
+        hook_type="suspense",
+        hook_description="",
+        tension_impact="tension_maintain",
+        risk_level="safe",
+    )
+
+    await selector.select(
+        branches=[branch],
+        context_notes="notes",
+        bible_summary="summary",
+        chapter_number=6,
+        style_guidance="骞冲彴椋庢牸锛氱暘鑼勫コ棰戯紝楂樻瀵嗗害锛屽揩鑺傚",
+    )
+
+    user_msg = llm.complete.call_args.kwargs["messages"][0]["content"]
+    assert "骞冲彴椋庢牸锛氱暘鑼勫コ棰戯紝楂樻瀵嗗害锛屽揩鑺傚" in user_msg
+    assert "鍏嬪埗缇庡" not in user_msg
+
+
 @pytest.mark.asyncio
 async def test_run_chapter_passes_carryover_guidance_to_planner_and_writer(tmp_project: Path) -> None:
     runner = AutoRunner(tmp_project, api_key="test", dry_run=False)
@@ -163,11 +214,15 @@ async def test_run_chapter_passes_carryover_guidance_to_planner_and_writer(tmp_p
     await runner.run_chapter(4)
 
     planner_guidance = runner.planner.plan.call_args.kwargs["additional_guidance"]
+    planner_profile = runner.planner.plan.call_args.kwargs["prompt_profile"]
     writer_guidance = runner.writer.write_with_expansion.call_args.kwargs["creative_guidance"]
     assert "不要突然扩大家庭线" in planner_guidance
     assert "不要新增没铺垫的新角色" in planner_guidance
     assert planner_guidance == writer_guidance
     assert runner.writer.write_with_expansion.call_args.kwargs["pov_character"] == "林越"
+    assert planner_profile.key == "tomato_romance"
+    assert runner.writer.write_with_expansion.call_args.kwargs["prompt_profile"].key == "tomato_romance"
+    assert runner.continuity_agent.review.call_args.kwargs["prompt_profile"].key == "tomato_romance"
 
 
 @pytest.mark.asyncio

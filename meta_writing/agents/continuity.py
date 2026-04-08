@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from ..llm import LLMClient, LLMResponse, MODEL_SONNET
+from ..prompt_profiles import GENERIC_PROFILE, PromptProfile
 from ..story_bible.compressor import CompressedContext
 
 
@@ -35,7 +36,7 @@ class IssueSeverity(str, Enum):
     INFO = "info"  # Suggestion for improvement
 
 
-CONTINUITY_SYSTEM_PROMPT = """\
+CONTINUITY_BASE_SYSTEM_PROMPT = """\
 你是一位严谨的小说连续性审查专家。你的任务是验证新章节与Story Bible的一致性。
 
 ## 检查项目
@@ -69,13 +70,6 @@ CONTINUITY_SYSTEM_PROMPT = """\
    - 角色A不应该凭空知道角色B的秘密，除非有明确的信息传递场景
    - 这是最容易出错的审查项——模型（作者）知道所有角色的信息，但角色本身不知道。审查时必须严格区分"作者知道的"和"角色知道的"。
 
-8. **微感描写文风**: 涉及微感（通过触觉/听觉感知物体残留痕迹）的描写是否遵守"纯感官、不解读"原则？
-   - ❌ "X记得Y"句式（沙发记得、门框记得、铁皮记得）——物体不会"记得"，只有物理现象
-   - ❌ 拟人化（"在说话"、"在等"、"在叫"）——物体没有意图，只有声音/温度/磨损
-   - ❌ 读心术（"他/她在想"）——微感只读物体痕迹，不读人的想法
-   - ❌ 直白情感总结（"她懂了那种孤独"、"原来不是我一个人"）——留给读者体会
-   - ✅ 正确写法：只写声音的频率/质感/层次、温度的分布/变化、磨损的形状/深浅，让读者自己连线
-
 ## 输出格式
 
 以JSON格式输出审查结果：
@@ -106,6 +100,14 @@ CONTINUITY_SYSTEM_PROMPT = """\
 
 严格但公平：只标记真正的矛盾，不要过度挑剔创作自由的部分。
 """
+
+
+def build_continuity_system_prompt(prompt_profile: PromptProfile | None = None) -> str:
+    profile = prompt_profile or GENERIC_PROFILE
+    sections = [CONTINUITY_BASE_SYSTEM_PROMPT.strip()]
+    if profile.continuity_notes.strip():
+        sections.append(profile.continuity_notes.strip())
+    return "\n\n".join(sections)
 
 
 @dataclass
@@ -177,6 +179,7 @@ class ContinuityAgent:
         chapter_text: str,
         bible_context: CompressedContext,
         chapter_number: int,
+        prompt_profile: PromptProfile | None = None,
     ) -> ContinuityResult:
         """Review a chapter for consistency issues.
 
@@ -195,7 +198,7 @@ class ContinuityAgent:
         )
 
         response = await self.llm.complete(
-            system=CONTINUITY_SYSTEM_PROMPT,
+            system=build_continuity_system_prompt(prompt_profile),
             messages=[{"role": "user", "content": user_message}],
             model=self.model,
             max_tokens=4096,

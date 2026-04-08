@@ -7,7 +7,7 @@ This is the shortest path to start a new novel in the `meta_writing` workspace w
 From the `meta_writing` repo root:
 
 ```powershell
-meta-writing project create tomato-romance --activate
+meta-writing project create tomato-romance --mode manual --activate
 ```
 
 This creates:
@@ -21,6 +21,9 @@ novels/tomato-romance/
   auto_runner_log.md
   editorial_report.md
 ```
+
+Use `--mode manual` for the interactive first-five-chapter style workflow.
+Use `--mode automatic` only when you want `auto_runner.py` to own planning, draft, review, and revision.
 
 ## 2. Fill in the project brief
 
@@ -77,10 +80,18 @@ Interactive pipeline:
 meta-writing generate --project tomato-romance
 ```
 
+`meta-writing generate` only works on `manual` projects.
+
 Autonomous pipeline:
 
 ```powershell
 python auto_runner.py --project tomato-romance --workspace-dir .
+```
+
+`auto_runner.py` only works on `automatic` projects. If you want that path, create the project with `--mode automatic` or switch the project mode later:
+
+```powershell
+meta-writing project mode automatic --name tomato-romance
 ```
 
 If you want to force MiniMax for one run:
@@ -118,3 +129,13 @@ Use `creator_guidance.md` for the long-form reference content you pasted in this
 
 Keep `story_core.yaml` for durable structured state.
 Keep `creator_guidance.md` for style, platform targeting, phase goals, and chapter-level instructions.
+
+## 7. Keep old root novels out of the workspace root
+
+If the repo root still has a previous novel under `story_data/` and `chapters/`, migrate it before starting another one:
+
+```powershell
+meta-writing project migrate-root legacy-book --no-activate
+```
+
+After that, all novels live under `novels/<project>/`, and the workspace will no longer mix root-level story files into new projects.

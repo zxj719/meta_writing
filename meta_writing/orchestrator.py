@@ -30,10 +30,12 @@ from .agents.writer import (
     WriterResult,
 )
 from .llm import LLMClient, MODEL_OPUS, MODEL_SONNET, build_writer_backend
+from .prompt_profiles import detect_prompt_profile
 from .story_bible.compressor import CompressedContext, StoryBibleCompressor
 from .story_bible.loader import StoryBibleLoader
 from .story_bible.schema import ChapterSummary, StoryBible
 from .style_linter import StyleLinter, Severity
+from .workspace import WORKFLOW_MODE_AUTOMATIC, read_project_metadata
 
 
 MAX_REVISION_ITERATIONS = 3
@@ -86,6 +88,12 @@ class Orchestrator:
         writer_provider: str | None = None,
     ) -> None:
         self.project_dir = Path(project_dir)
+        project_metadata = read_project_metadata(self.project_dir)
+        if project_metadata and project_metadata.workflow_mode == WORKFLOW_MODE_AUTOMATIC:
+            raise ValueError(
+                "This project is configured for automatic workflow mode. "
+                "Use auto_runner.py or switch the project back to manual workflow mode."
+            )
         self.story_data_dir = self.project_dir / "story_data"
         self.chapters_dir = self.project_dir / "chapters"
         self.creator_guidance_path = self.project_dir / "creator_guidance.md"
@@ -161,6 +169,10 @@ class Orchestrator:
         self.state.chapter_number = chapter_number
         creator_guidance = self._load_creator_guidance()
         merged_guidance = self._merge_guidance(creator_guidance, guidance)
+        prompt_profile = detect_prompt_profile(
+            creator_guidance=merged_guidance,
+            target_satisfaction_type=bible.core.target_satisfaction_type,
+        )
 
         recent_text = self.get_recent_chapters_text(chapter_number)
         bible_context = self.compressor.compress(
@@ -174,6 +186,7 @@ class Orchestrator:
             recent_chapters_text=recent_text,
             chapter_number=chapter_number,
             additional_guidance=merged_guidance,
+            prompt_profile=prompt_profile,
         )
         self.state.planner_result = planner_result
 
@@ -200,6 +213,7 @@ class Orchestrator:
             min_chars=bible.core.chapter_min_chars or MIN_CHAPTER_CHARS,
             target_chars=bible.core.chapter_target_chars or TARGET_CHAPTER_CHARS,
             creative_guidance=merged_guidance,
+            prompt_profile=prompt_profile,
         )
         self.state.writer_result = writer_result
         chapter_text = writer_result.chapter_text
@@ -218,6 +232,7 @@ class Orchestrator:
                 chapter_text=chapter_text,
                 bible_context=bible_context,
                 chapter_number=chapter_number,
+                prompt_profile=prompt_profile,
             )
             self.state.continuity_result = continuity_result
 
@@ -261,6 +276,7 @@ class Orchestrator:
                 feedback=feedback,
                 bible_context=bible_context,
                 creative_guidance=merged_guidance,
+                prompt_profile=prompt_profile,
             )
             chapter_text = revised.chapter_text
             self.state.writer_result = revised

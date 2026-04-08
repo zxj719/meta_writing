@@ -13,11 +13,12 @@ import re
 from dataclasses import dataclass
 
 from ..llm import LLMClient, LLMResponse, MODEL_OPUS
+from ..prompt_profiles import GENERIC_PROFILE, PromptProfile
 from ..story_bible.compressor import CompressedContext
 
 logger = logging.getLogger(__name__)
 
-PLANNER_SYSTEM_PROMPT = """\
+PLANNER_BASE_SYSTEM_PROMPT = """\
 你是一位资深网络小说策划大师。你的任务是为下一章生成2-3个剧情分支选项。
 
 ## 核心原则
@@ -53,16 +54,15 @@ PLANNER_SYSTEM_PROMPT = """\
 ```
 
 确保每个分支的走向明显不同，给读者/策划者真正有意义的选择。
-
-## 本作风格要求（克制美学）
-
-本作是克制美学的都市异能小说，人物不直接说破情感，用行动、物件、沉默推进关系。
-规划时注意：
-- 感知描写只给物理细节，不替角色总结情绪
-- 关系推进通过具体事件（共同感知、遗留物、沉默时刻），而非心理剖白
-- 每章要有一个具体的感知场景（地点+物体+两种微感各自的信息）
-- 伏笔推进要自然，不要在大纲中直接写"她意识到XX"
 """
+
+
+def build_planner_system_prompt(prompt_profile: PromptProfile | None = None) -> str:
+    profile = prompt_profile or GENERIC_PROFILE
+    sections = [PLANNER_BASE_SYSTEM_PROMPT.strip()]
+    if profile.planner_notes.strip():
+        sections.append(profile.planner_notes.strip())
+    return "\n\n".join(sections)
 
 
 @dataclass
@@ -101,6 +101,7 @@ class PlannerAgent:
         recent_chapters_text: str,
         chapter_number: int,
         additional_guidance: str = "",
+        prompt_profile: PromptProfile | None = None,
     ) -> PlannerResult:
         """Generate plot branches for the next chapter.
 
@@ -118,7 +119,7 @@ class PlannerAgent:
         )
 
         response = await self.llm.complete(
-            system=PLANNER_SYSTEM_PROMPT,
+            system=build_planner_system_prompt(prompt_profile),
             messages=[{"role": "user", "content": user_message}],
             model=self.model,
             max_tokens=4096,

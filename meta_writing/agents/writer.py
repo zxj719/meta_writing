@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 from ..llm import LLMClient, LLMResponse, MODEL_SONNET
 from ..negative_examples import format_examples_for_prompt
+from ..prompt_profiles import GENERIC_PROFILE, PromptProfile
 from ..story_bible.compressor import CompressedContext
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ MIN_CHAPTER_CHARS = 7000   # Below this, auto-expand
 TARGET_CHAPTER_CHARS = 10000  # Expansion target
 
 
-WRITER_SYSTEM_PROMPT = """\
+WRITER_BASE_SYSTEM_PROMPT = """\
 你是一位顶尖的中文网络小说写手。你的任务是根据大纲和Story Bible上下文，生成高质量的章节正文。
 
 ## 核心写作要求
@@ -42,24 +43,11 @@ WRITER_SYSTEM_PROMPT = """\
 - ❌ 配角对主角的谄媚式崇拜
 - ❌ 过度解释已经展示过的内容（show don't tell）
 - ❌ 在正文中留下规划标记（"**节点一**"、"**节点二**"等结构标记）——只输出正文
-- ❌ 刻度值在一章中出现超过2次（只记录开章确认和感知峰值，不记录中间状态）
-- ❌ "可以。"/"稳的。"作为独立确认短句——全章最多1次，其余融入感知描写
 - ❌ 复制上一章的结尾句式或意象——每章结尾必须有本章独有的最终画面
 - ❌ "她不知道"在全文中出现超过3次——其余改为具体的犹豫动作或沉默
 - ❌ 排比式内心独白（"她应该……？她应该……？她应该……？"这类三连问）
-- ❌ 直白情感陈述（"她懂那种孤独"、"原来不是我一个人"、"她感到……在胸口涨起来"）
-- ❌ "像是在说：XXXX"这种翻译式内心解读——微感只给物理细节，不替物体翻译情绪
-
-## 微感描写铁律
-
-微感（角色通过触觉/听觉感知物体残留的痕迹）的描写必须遵守：
-
-1. **绝不用"X记得Y"句式**: 物体不会"记得"——只写物理现象（声音、振动、温度、磨损）。
-   - ❌ "沙发记得他坐下去的弧度" → ✅ "沙发的弹簧在那个位置有一个弧度，布料在那里凹下去一块"
-   - ❌ "铁皮记得那种温度" → ✅ "被捂过的铁皮振动频率不同，声音闷一些、钝一些"
-2. **绝不用拟人化解读**: 不写"在说话"、"在等"、"在叫她"。物体只有物理状态，没有意图。
-3. **绝不读心**: 微感只读物体的物理痕迹，绝不写"他/她在想……"。
-4. **让读者连线**: 只呈现感官细节，不替读者总结意义（不写"原来有人来过"、"她懂了那种孤独"）。
+- ❌ 直白情感陈述替代场景推进
+- ❌ 把台词写成连续宣言，而不是人物在现场的真实反应
 
 ## 输出要求
 
@@ -69,34 +57,25 @@ WRITER_SYSTEM_PROMPT = """\
 - 段落之间用空行分隔
 """
 
-EXPANSION_SYSTEM_PROMPT = """\
+EXPANSION_BASE_SYSTEM_PROMPT = """\
 你是一位顶尖的中文网络小说写手。你需要对一篇已完成的章节进行扩写——保留现有的所有好的内容，在合适的位置插入新的段落和细节。
 
 ## 核心写作要求
 
-1. **文风一致**: 与原文完全一致——冷静、克制、有距离感的第三人称。
-2. **五感描写**: 每一段新增的感知描写必须有独特的、具象的、不重复的物理细节。
-3. **沉默代替抒情**: 用行为、动作、身体反应传递情感。永远不要直接写情感陈述。
+1. **文风一致**: 与原文完全一致，沿用现有叙事视角、节奏和人物说话方式。
+2. **五感描写**: 每一段新增描写都要有具体、独特、服务场景的细节。
+3. **扩写要有功能**: 新增内容必须补足推进、互动、信息或氛围，不能只是堆字数。
 4. **无缝衔接**: 扩写的内容必须与前后文自然衔接，读起来像原文本来就有这些段落。
-
-## 微感描写铁律
-
-1. **绝不用"X记得Y"句式**: 物体不会"记得"——只写物理现象。
-2. **绝不用拟人化解读**: 不写"在说话"、"在等"、"在叫她"。
-3. **绝不读心**: 微感只读物体的物理痕迹。
-4. **让读者连线**: 只呈现感官细节，不替读者总结。
 
 ## 严格禁止
 
 - ❌ "她不知道"在全文中出现超过3次——其余改为具体的犹豫动作或沉默
 - ❌ 排比式内心独白（"她应该……？她应该……？"这类三连问）
-- ❌ 直白情感陈述（"她懂那种孤独"、"原来不是我一个人"）
-- ❌ "像是在说：XXXX"这种翻译式内心解读
+- ❌ 直白情感陈述替代人物动作和情境
+- ❌ 把原文已有信息换一种说法重复一遍
 - ❌ 同一个比喻在相邻500字内出现两次
 - ❌ 新增内容与原文重复或矛盾
-- ❌ "X记得Y"、"在说话"、"在等"
-- ❌ 科技术语（"晶格"、"微观层面"、"棉纤维细胞壁"）
-- ❌ 过度解释（"不是微感，是真实的物理声音"）
+- ❌ 无来由地切换到另一种项目风格
 
 ## 输出要求
 
@@ -106,7 +85,7 @@ EXPANSION_SYSTEM_PROMPT = """\
 """
 
 
-REVISION_SYSTEM_PROMPT = """\
+REVISION_BASE_SYSTEM_PROMPT = """\
 你是一位顶尖的中文网络小说写手。你需要根据审查反馈修改章节内容。
 
 ## 修改原则
@@ -120,6 +99,30 @@ REVISION_SYSTEM_PROMPT = """\
 
 输出修改后的完整章节正文（不是只输出修改部分）。
 """
+
+
+def build_writer_system_prompt(prompt_profile: PromptProfile | None = None) -> str:
+    profile = prompt_profile or GENERIC_PROFILE
+    sections = [WRITER_BASE_SYSTEM_PROMPT.strip()]
+    if profile.writer_notes.strip():
+        sections.append(profile.writer_notes.strip())
+    return "\n\n".join(sections)
+
+
+def build_expansion_system_prompt(prompt_profile: PromptProfile | None = None) -> str:
+    profile = prompt_profile or GENERIC_PROFILE
+    sections = [EXPANSION_BASE_SYSTEM_PROMPT.strip()]
+    if profile.expansion_notes.strip():
+        sections.append(profile.expansion_notes.strip())
+    return "\n\n".join(sections)
+
+
+def build_revision_system_prompt(prompt_profile: PromptProfile | None = None) -> str:
+    profile = prompt_profile or GENERIC_PROFILE
+    sections = [REVISION_BASE_SYSTEM_PROMPT.strip()]
+    if profile.revision_notes.strip():
+        sections.append(profile.revision_notes.strip())
+    return "\n\n".join(sections)
 
 
 @dataclass
@@ -145,6 +148,7 @@ class WriterAgent:
         chapter_number: int,
         pov_character: str = "",
         creative_guidance: str = "",
+        prompt_profile: PromptProfile | None = None,
     ) -> WriterResult:
         """Generate a full chapter from an outline.
 
@@ -165,12 +169,13 @@ class WriterAgent:
             chapter_number,
             pov_character,
             creative_guidance,
+            prompt_profile,
         )
         if creative_guidance:
             user_message += f"\n\n## 创作指导\n\n{creative_guidance}"
 
         response = await self.llm.complete(
-            system=WRITER_SYSTEM_PROMPT,
+            system=build_writer_system_prompt(prompt_profile),
             messages=[{"role": "user", "content": user_message}],
             model=self.model,
             max_tokens=16384,  # ~10K Chinese characters
@@ -185,6 +190,7 @@ class WriterAgent:
         feedback: str,
         bible_context: CompressedContext,
         creative_guidance: str = "",
+        prompt_profile: PromptProfile | None = None,
     ) -> WriterResult:
         """Revise a chapter based on review feedback.
 
@@ -204,7 +210,7 @@ class WriterAgent:
         )
 
         response = await self.llm.complete(
-            system=REVISION_SYSTEM_PROMPT,
+            system=build_revision_system_prompt(prompt_profile),
             messages=[{"role": "user", "content": user_message}],
             model=self.model,
             max_tokens=16384,
@@ -223,6 +229,7 @@ class WriterAgent:
         min_chars: int = MIN_CHAPTER_CHARS,
         target_chars: int = TARGET_CHAPTER_CHARS,
         creative_guidance: str = "",
+        prompt_profile: PromptProfile | None = None,
     ) -> WriterResult:
         """Write a chapter, auto-expanding if below minimum char count.
 
@@ -239,6 +246,7 @@ class WriterAgent:
             chapter_number=chapter_number,
             pov_character=pov_character,
             creative_guidance=creative_guidance,
+            prompt_profile=prompt_profile,
         )
 
         cn_count = _count_chinese_chars(result.chapter_text)
@@ -255,6 +263,7 @@ class WriterAgent:
             bible_context=bible_context,
             target_chars=target_chars,
             creative_guidance=creative_guidance,
+            prompt_profile=prompt_profile,
         )
 
         final_count = _count_chinese_chars(expanded.chapter_text)
@@ -268,6 +277,7 @@ class WriterAgent:
         bible_context: CompressedContext,
         target_chars: int = TARGET_CHAPTER_CHARS,
         creative_guidance: str = "",
+        prompt_profile: PromptProfile | None = None,
     ) -> WriterResult:
         """Expand a chapter that is too short.
 
@@ -293,7 +303,7 @@ class WriterAgent:
         )
 
         response = await self.llm.complete(
-            system=EXPANSION_SYSTEM_PROMPT,
+            system=build_expansion_system_prompt(prompt_profile),
             messages=[{"role": "user", "content": user_message}],
             model=self.model,
             max_tokens=16384,
@@ -310,6 +320,7 @@ class WriterAgent:
         chapter_number: int,
         pov_character: str,
         creative_guidance: str,
+        prompt_profile: PromptProfile | None,
     ) -> str:
         parts = [f"## Story Bible上下文\n\n{bible_context.text}"]
 
@@ -322,7 +333,11 @@ class WriterAgent:
             parts.append(f"\n\n## POV角色: {pov_character}")
 
         # Inject negative examples to prevent known anti-patterns
-        parts.append(f"\n\n{format_examples_for_prompt()}")
+        examples = format_examples_for_prompt(
+            profile_key=(prompt_profile or GENERIC_PROFILE).negative_examples_profile
+        )
+        if examples:
+            parts.append(f"\n\n{examples}")
 
         parts.append(f"\n\n请根据以上信息，撰写第{chapter_number}章的完整正文。")
 
