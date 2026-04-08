@@ -7,8 +7,8 @@ personality_traits:
 - 偏执
 - 忍耐
 - 攻击性强
-knowledge_state: 察觉沈清辞对自己异常关注，但不清楚她为什么会有这种洞察力；开始意识到她不是敌人
-emotional_state: 戒备中夹杂困惑和一丝被打动的动摇；防线出现裂痕
+knowledge_state: 察觉到沈清辞不是敌人；意识到她真的了解自己的本质和底线；开始怀疑她话语中的重生暗示，但选择不追问到底
+emotional_state: 从高度戒备转向困惑和动摇；被"不想伤害任何人"这句话击中内心深处；出现信任萌芽，防线出现真正的裂痕
 relationships:
 - target: 沈清辞
   type: 危险变量
