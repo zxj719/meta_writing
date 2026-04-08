@@ -15,6 +15,10 @@ beats:
   beat_type: minor
   description: 读心术传来顾夜舟内心"她为什么总挡在我前面"的念头，以及系统提示"好感度+2"的瞬间——这是沈清辞确认他并非冷漠无情的关键时刻
   delivered: true
+- chapter: 6
+  beat_type: minor
+  description: 顾夜舟说"回家再扔"时的停顿和沈清辞的领悟——她明白了他不扔的不是牛奶，而是那份善意。这是一个温柔的小甜蜜点，在日常校园互动中穿插的情感调节。
+  delivered: true
 hooks:
 - chapter: 6
   hook_type: suspense
@@ -32,8 +36,13 @@ hooks:
   hook_type: suspense
   description: 顾夜舟留下"回头再说"离开，但沈清辞内心知道三天后可能发生的事，这段时间里苏晚宁的动向和"回头再说"的承诺都充满未知
   position: end
+- chapter: 6
+  hook_type: emotional
+  description: 沈清辞回想起梦里那只会掐住她脖子的手，与现实中顾夜舟接住牛奶的手形成对比。她深吸一口气，庆幸"至少今天没有做噩梦"——暗示噩梦（前世记忆）仍然存在，但她正在努力改变这条线。
+  position: end
 tension_curve:
 - 6.0
 - 7.0
 - 4.0
 - 6.5
+- 3.5
