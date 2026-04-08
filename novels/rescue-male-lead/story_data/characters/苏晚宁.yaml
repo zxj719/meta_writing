@@ -6,8 +6,8 @@ personality_traits:
 - 会演
 - 善于借刀杀人
 - 欺软怕硬
-knowledge_state: 暂时不知道沈清辞已重生，但察觉她这两天很反常
-emotional_state: 维持表面无辜，暗里盘算；下午被叫出教室（与金主相关）
+knowledge_state: 察觉到沈清辞这两天很反常；下午被叫出教室（与金主相关）
+emotional_state: 维持表面无辜，暗里盘算
 relationships:
 - target: 沈清辞
   type: 塑料闺蜜
