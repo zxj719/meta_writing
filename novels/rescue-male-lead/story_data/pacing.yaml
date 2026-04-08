@@ -11,6 +11,10 @@ beats:
   beat_type: minor
   description: 顾夜舟承认没扔牛奶盒，沈清辞站在走廊里感觉心脏被人轻轻捏了一下，这个甜蜜的细节确认了两人之间正在萌芽的特殊联系
   delivered: true
+- chapter: 6
+  beat_type: minor
+  description: 读心术传来顾夜舟内心"她为什么总挡在我前面"的念头，以及系统提示"好感度+2"的瞬间——这是沈清辞确认他并非冷漠无情的关键时刻
+  delivered: true
 hooks:
 - chapter: 6
   hook_type: suspense
@@ -24,7 +28,12 @@ hooks:
   hook_type: suspense
   description: 系统发布新任务要求24小时内与顾夜舟进行30秒以上有身体接触的对话，沈清辞需要想办法在不显得刻意的情况下完成这个任务
   position: end
+- chapter: 6
+  hook_type: suspense
+  description: 顾夜舟留下"回头再说"离开，但沈清辞内心知道三天后可能发生的事，这段时间里苏晚宁的动向和"回头再说"的承诺都充满未知
+  position: end
 tension_curve:
 - 6.0
 - 7.0
 - 4.0
+- 6.5

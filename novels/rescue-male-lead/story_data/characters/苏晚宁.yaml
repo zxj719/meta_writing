@@ -7,7 +7,7 @@ personality_traits:
 - 善于借刀杀人
 - 欺软怕硬
 knowledge_state: 察觉到沈清辞这两天很反常；下午被叫出教室（与金主相关）
-emotional_state: 维持表面无辜，暗里盘算
+emotional_state: 表面无辜，暗里盘算；在家哭了一上午
 relationships:
 - target: 沈清辞
   type: 塑料闺蜜
