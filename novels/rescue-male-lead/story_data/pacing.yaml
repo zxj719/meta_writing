@@ -1,0 +1,12 @@
+beats:
+- chapter: 6
+  beat_type: minor
+  description: 顾夜舟主动告诉沈清辞橘猫叫「小白」——这个主动分享的行为对于一个习惯隐藏自己的人来说是巨大的突破，让沈清辞感受到他内心深处渴望被看见
+  delivered: true
+hooks:
+- chapter: 6
+  hook_type: suspense
+  description: 沈清辞收到了关于顾夜舟的威胁短信却没有告诉他，选择自己扛下——她隐瞒了什么？顾夜舟三天后的暴走是否会如期而至？
+  position: end
+tension_curve:
+- 6.0

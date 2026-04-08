@@ -1,0 +1,35 @@
+name: 沈清辞
+aliases: []
+physical_description: 富家千金长相，气质明艳，重生后说话更利落，眼神里多了压不住的锋利。
+personality_traits:
+- 嘴硬
+- 护短
+- 行动力强
+- 记仇
+- 吐槽欲旺盛
+knowledge_state: 知道顾夜舟三天后会暴走，知道苏晚宁部分金主关系，知道自己前世会被算计；通过触碰能力进一步了解顾夜舟的内心世界
+emotional_state: 警觉中多了一层心疼，决心保护他
+relationships:
+- target: 顾夜舟
+  type: 救赎对象
+  description: 前世亏欠的人，这一世决定提前靠近。
+  knowledge: 知道他会黑化，但不知道全部真相。
+- target: 苏晚宁
+  type: 宿敌
+  description: 前世被害得很惨，这一世准备先手反击。
+  knowledge: 知道她擅长装可怜、借刀杀人。
+current_goals:
+- 阻止9月7日暴走
+- 接近顾夜舟建立信任
+- 拆掉苏晚宁的局
+location: 高三（七）班
+core_triangle:
+  desire: 救下顾夜舟并改写自己和他的结局
+  ability: 重生记忆、执行力、系统辅助、家庭资源
+  obstacle: 顾夜舟极度戒备，苏晚宁暗中捣乱，系统任务离谱
+motivation_type: mission
+growth_stage: initial
+backstory: 前世是恋爱脑富家女，被苏晚宁算计到家破人亡，临死前才知道顾夜舟一直在暗中护她。
+first_appearance: 1
+last_active: 6
+is_pov: true
