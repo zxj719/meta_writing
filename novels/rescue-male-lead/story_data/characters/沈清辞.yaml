@@ -7,29 +7,30 @@ personality_traits:
 - 行动力强
 - 记仇
 - 吐槽欲旺盛
-knowledge_state: 确认顾夜舟会把她给的草莓牛奶盒留下来；也确认他对自己靠近的容忍度比之前高，后续可以继续用日常互动慢慢加深信任
-emotional_state: 被“那盒牛奶我没扔”这句话狠狠戳中；保护顾夜舟的决心进一步加强，也开始把“帮他摆脱孤立”当成下一阶段必须完成的事
+knowledge_state: 确认X并不是单纯躲在校园里的推手，而是和顾启明、青岚研究所、07批封存档案以及沈父公司的旧项目都有牵连；也确认顾夜舟在失控和真相逼近时会本能把所有人往外推，但最终已经愿意让自己并肩站进去
+emotional_state: 心动已经和责任感搅在一起了；一边心疼顾夜舟被亲生父亲和旧项目追着咬，一边也被真相逼得更清醒更警惕，但吵过之后反而更不想退
 relationships:
 - target: 顾夜舟
-  type: 救赎对象
-  description: 前世亏欠的人，这一世决定提前靠近。
-  knowledge: 知道他会黑化，但不知道全部真相。
+  type: 正在靠近的救赎对象
+  description: 从前世亏欠的人，变成了现在会一起进旧楼查真相的人。
+  knowledge: 知道他与顾启明和旧项目直接有关，也知道他越在乎越会先把人往外推。
 - target: 苏晚宁
-  type: 宿敌
-  description: 前世被害得很惨，这一世准备先手反击。
-  knowledge: 知道她擅长装可怜、借刀杀人。
+  type: 脆弱同盟
+  description: 前世宿敌，这一世被逼成了暂时能用的线人。
+  knowledge: 知道她怕X，知道她现在的倒戈先是为了保命，但这条线已经能用。
 current_goals:
-- 阻止9月7日暴走
-- 接近顾夜舟建立信任
-- 拆掉苏晚宁的局
-location: 高三（七）班
+- 查清顾启明、X、青岚研究所和07批封存档案的关系
+- 稳住顾夜舟的情绪与失控风险
+- 利用苏晚宁继续钓出X的下一步动作
+- 查明沈父公司在旧项目里扮演的角色
+location: 学校与旧仓库线
 core_triangle:
   desire: 救下顾夜舟并改写自己和他的结局
   ability: 重生记忆、执行力、系统辅助、家庭资源
-  obstacle: 顾夜舟极度戒备，苏晚宁暗中捣乱，系统任务离谱
+  obstacle: 顾夜舟本能推人、顾启明旧项目浮出水面、沈父公司也卷在其中
 motivation_type: mission
-growth_stage: initial
+growth_stage: adapting
 backstory: 前世是恋爱脑富家女，被苏晚宁算计到家破人亡，临死前才知道顾夜舟一直在暗中护她。
 first_appearance: 1
-last_active: 6
+last_active: 20
 is_pov: true

@@ -7,29 +7,30 @@ personality_traits:
 - 偏执
 - 忍耐
 - 攻击性强
-knowledge_state: 确认沈清辞并不是直接“看穿”自己，而是总能抓住他没藏好的细节；也意识到她一直在认真留意自己的状态和处境
-emotional_state: 从高度戒备转向明显松动；愿意主动承认自己没扔牛奶，也默认沈清辞坐到身边、替自己插好吸管并继续投喂；防线继续裂开
+knowledge_state: 确认沈清辞不是好奇心上头，也不是一时热闹，而是真的会追到最危险的地方都不撤；也知道她已经查到顾启明、旧项目和自己之间的联系，很多事瞒不住了
+emotional_state: 对沈清辞的信任和依赖被第一次大吵彻底逼了出来；一边因为顾启明和旧档案而处在爆裂边缘，一边又默认她站在自己身边，已经不再真的想把她推开
 relationships:
 - target: 沈清辞
-  type: 危险变量
-  description: 她忽然靠近自己，还给了草莓牛奶。
-  knowledge: 知道她反常，但不知动机。
+  type: 无法推开的例外
+  description: 她硬闯进来，已经成了自己失控前唯一能拉得住的人。
+  knowledge: 知道她倔，知道她会追过来，也知道自己对她的在意已经藏不住。
 - target: 苏晚宁
-  type: 敌对
-  description: 她曾多次带头羞辱他。
-  knowledge: 知道她背后有人。
+  type: 警惕线人
+  description: 仍然不信她，但默认她现在会把X的消息往外转。
+  knowledge: 知道她以前害过自己，也知道她现在更怕X。
 current_goals:
-- 熬过9月7日
-- 隐藏自己的失控征兆
-- 查清沈清辞到底知道多少
-location: 高三（七）班后排
+- 控制失控并弄清力量来源
+- 查清顾启明、X和旧研究项目的真实关系
+- 在不彻底推开沈清辞的前提下尽量护住她
+- 找到07批封存档案后面的完整真相
+location: 学校与旧仓库线
 core_triangle:
-  desire: 不再失控，不被任何人踩进泥里
+  desire: 不再失控，也不让沈清辞被自己和旧项目拖下水
   ability: 极强的忍耐力和潜在暴走力量
-  obstacle: 原生家庭创伤、校园霸凌、对任何善意都不信任
+  obstacle: 原生家庭创伤、顾启明留下的旧项目、对任何善意都本能排斥
 motivation_type: survival
-growth_stage: initial
+growth_stage: crisis
 backstory: 长期遭受家庭虐待和校园排挤，体内潜藏危险力量，稍有刺激就可能失控。
 first_appearance: 1
-last_active: 6
+last_active: 20
 is_pov: false

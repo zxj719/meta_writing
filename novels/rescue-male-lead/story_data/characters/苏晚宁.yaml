@@ -6,29 +6,30 @@ personality_traits:
 - 会演
 - 善于借刀杀人
 - 欺软怕硬
-knowledge_state: 察觉到沈清辞这两天很反常；下午被叫出教室（与金主相关）
-emotional_state: 表面无辜，暗里盘算；在家哭了一上午
+knowledge_state: 知道X已经不只是在利用自己搞校园霸凌，而是在替和旧项目有关的人清理尾巴；也知道顾启明、青岚研究所和沈父公司的线正在慢慢并到一起，自己现在只要站错一次队就可能被一起灭口
+emotional_state: 惊惧仍然是主色，但已经从单纯求生变成边怕边做事；她不再敢碰顾夜舟这条线，也开始真心希望沈清辞能把X揪出来
 relationships:
 - target: 沈清辞
-  type: 塑料闺蜜
-  description: 表面亲近，实则嫉妒并利用。
-  knowledge: 知道她过去很好骗。
+  type: 临时靠山
+  description: 原本想踩她上位，现在只能抱着她的大腿当线人。
+  knowledge: 知道她聪明、记仇，也知道她暂时还用得上自己。
 - target: 顾夜舟
-  type: 施暴者一方
-  description: 配合校外混混和金主资源羞辱他。
-  knowledge: 知道他没有靠山。
+  type: 不敢再碰的人
+  description: 见过他失控边缘的样子后，再不敢把他当软柿子。
+  knowledge: 知道他背后牵着更可怕的旧项目。
 current_goals:
-- 维持人设
-- 继续利用顾夜舟当垫脚石
-- 稳住金主关系
+- 继续给沈清辞转X的消息
+- 隐藏自己已经倒向沈清辞的事实
+- 想办法保住自己，不被X灭口
+- 尽量别再卷进顾夜舟失控现场
 location: 高三（七）班
 core_triangle:
-  desire: 往上爬，继续当校园里最吃香的那种人
+  desire: 先活下来，再找机会保住自己往后的路
   ability: 装可怜、拉拢人脉、情绪操控
-  obstacle: 沈清辞开始失控反击，旧金主关系不稳
-motivation_type: interest
-growth_stage: initial
+  obstacle: X开始清尾、沈清辞不再好骗、旧金主和学校线都靠不住
+motivation_type: survival
+growth_stage: adapting
 backstory: 家境一般，极擅长经营人设和资源置换，把所有人都当跳板。
 first_appearance: 1
-last_active: 6
+last_active: 19
 is_pov: false
