@@ -103,10 +103,69 @@ _LINE_RULES: list[tuple[str, re.Pattern[str], Severity, str, str]] = [
         "说话方式元注释——直接说结果，不解释说话方式",
         "删除对说话方式的描述，直接写对话或反应",
     ),
+    (
+        "this_too_template",
+        re.compile(r"这[^。！？\n]{0,16}太[^。！？\n]{0,24}[。！？]?"),
+        Severity.ERROR,
+        '“这……太……”夸张模板——像口头反应占位，不像具体现场',
+        '改为人物动作、对白反应或可感知的场景细节，不要用“这也太……”直接替读者总结',
+    ),
+    (
+        "negation_definition_template",
+        re.compile(r"(?:这?不是[^。！？\n]{0,24}(?:，|,)?(?:而是|是))"),
+        Severity.ERROR,
+        '“不是……是……/不是，是……”硬转折模板——反向下定义会削弱现场感',
+        '改成直接叙述、动作反应或具体细节，不要靠“不是，是”制造力度',
+    ),
+    (
+        "flat_expression_template",
+        re.compile(r"(?:脸色[^。！？\n]{0,8}沉(?:了)?下(?:去|来)|眼神[^。！？\n]{0,8}冷(?:了)?下(?:去|来))"),
+        Severity.ERROR,
+        '“脸色沉下去/眼神冷下去”扁平神态模板——神态缺少可见层次',
+        '延展为微表情、体态、外貌锚点或环境反应，例如唇线、眉骨、指节、站姿和光影变化',
+    ),
+    (
+        "na_intensifier_but_scaffold",
+        re.compile(r"那[^。！？\n]{0,18}很[^。！？\n]{1,18}(?:，|,)(?:但|但是)[^。！？\n]{1,30}"),
+        Severity.ERROR,
+        '“那……很……，但……”机械转折句——像在用固定脚手架制造细腻感',
+        '改成更具体的动作、神态或环境承接，避免先抽象判断再用“但”转向',
+    ),
+    (
+        "na_negation_but_scaffold",
+        re.compile(r"那[^。！？\n]{0,18}不[^。！？\n]{1,18}(?:，|,)(?:但|但是)[^。！？\n]{1,30}"),
+        Severity.ERROR,
+        '“那……不……，但……”机械转折句——否定后硬转会留下AI腔',
+        '改为直接呈现现场变化，或拆成自然对白/动作，不要靠“那不……但……”下判断',
+    ),
 ]
 
 # Multi-line rules: check patterns that span context or count across the full text.
 _GLOBAL_RULES: list[tuple[str, re.Pattern[str], int, Severity, str, str]] = [
+    (
+        "contrast_scaffold_overuse",
+        re.compile(r"[^\n。！？]{4,30}(?:，|,)(?:但|但是|却|可)[^\n。！？]{4,30}[。！？]"),
+        6,
+        Severity.ERROR,
+        '“X，但Y”对照脚手架出现过多——句法重复过强，机械感明显',
+        '保留最有力的少量对照句，其余改成动作、停顿、环境变化或直接叙述，避免整章都靠“但/却”拐弯',
+    ),
+    (
+        "short_sentence_tic_overuse",
+        re.compile(r"(?:^|\n)很[\u4e00-\u9fff]{1,3}[。！？](?=\n|$)"),
+        3,
+        Severity.WARNING,
+        '独立“很X。”短句出现过多——像固定结尾口癖，容易暴露AI节拍',
+        '删掉一半以上的“很X。”独句，改成并入前句的具体描写，或换成更有信息量的动作/环境句',
+    ),
+    (
+        "negation_parallelism_overuse",
+        re.compile(r"(?:这?不是[^。！？\n]{0,24}(?:，|,)?(?:而是|是))"),
+        3,
+        Severity.WARNING,
+        '“不是……是……/这不是……是……”否定式排比出现过多——像模板化强调，不像现场反应',
+        '保留极少数最有力的句子，其余改成直接叙述、动作反应或场景细节，不要靠反向下定义制造力度',
+    ),
     (
         "na_zhong_na_zhong",
         re.compile(r"是那种.{0,30}的那种"),
@@ -158,6 +217,61 @@ _GLOBAL_RULES: list[tuple[str, re.Pattern[str], int, Severity, str, str]] = [
 ]
 
 
+def _chinese_char_count(text: str) -> int:
+    return len(re.findall(r"[\u4e00-\u9fff]", text))
+
+
+def _find_tiny_paragraph_triplets(lines: list[str]) -> list[StyleIssue]:
+    issues: list[StyleIssue] = []
+    streak: list[tuple[int, str]] = []
+
+    for line_num, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        if 1 <= _chinese_char_count(stripped) <= 2:
+            streak.append((line_num, stripped))
+            if len(streak) == 3:
+                preview = " / ".join(item[1] for item in streak)
+                issues.append(StyleIssue(
+                    line=streak[0][0],
+                    text=preview[:80],
+                    pattern_name="tiny_paragraph_triplet",
+                    message='连续三次单字/双字成段——容易形成空洞的“有力感”',
+                    suggestion='保留最有信息量的一处，其余并入前后动作、神态、外貌或环境描写',
+                    severity=Severity.ERROR,
+                ))
+        else:
+            streak = []
+
+    return issues
+
+
+def _find_opening_yi_jiu_scaffold(lines: list[str]) -> list[StyleIssue]:
+    """Flag chapter openings that start with the overused “一……就……” beat."""
+    for line_num, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        if re.search(r"一[^。！？\n]{1,20}就[^。！？\n]{1,30}", stripped):
+            return [
+                StyleIssue(
+                    line=line_num,
+                    text=stripped[:80],
+                    pattern_name="opening_yi_jiu_scaffold",
+                    message='章节开头使用“一……就……”起手式——开篇节拍容易显得模板化',
+                    suggestion='换成具体画面、人物动作、环境声或一句更有钩子的对白开场，不要每章开头都用条件式起笔',
+                    severity=Severity.ERROR,
+                )
+            ]
+
+        return []
+
+    return []
+
+
 class StyleLinter:
     """Fast regex-based style checker for generated prose."""
 
@@ -187,6 +301,9 @@ class StyleLinter:
                         suggestion=suggestion,
                         severity=severity,
                     ))
+
+        issues.extend(_find_tiny_paragraph_triplets(lines))
+        issues.extend(_find_opening_yi_jiu_scaffold(lines))
 
         # Global rules (count-based)
         for name, pattern, max_count, severity, message, suggestion in _GLOBAL_RULES:

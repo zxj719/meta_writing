@@ -1,0 +1,42 @@
+name: 秦越
+aliases:
+- 秦叔
+- 沈家保卫人员
+- 校安协查
+physical_description: 四十岁上下，短发，眉骨有旧疤，手上有长期握器械留下的茧；穿后勤马甲时像普通维修人员，但站位、扫视和挡门动作都带着训练痕迹。
+personality_traits:
+- 沉稳
+- 流程熟练
+- 保护欲强
+- 伪装克制
+- 执行力强
+knowledge_state: 第54章首次正式出场。表面身份是进入临川一中心理咨询室查线路的校安协查/后勤维修人员，实际属于沈家保护组，读者侧可理解为异控局保护线人员。他知道沈父授意、顾澜噪点通讯和心理咨询室不能分开三人的要求，但不会公开说出组织身份。
+emotional_state: 职业性克制，对沈清辞有保护责任，但在人前严格称呼她为沈同学，不暴露沈家关系。
+relationships:
+- target: 沈清辞
+  type: 保护对象
+  description: 长期以沈家维修/安保人员外壳出现在沈家周围。
+  knowledge: 知道她是沈父重点保护对象，也知道当前心理咨询室不能让她与顾夜舟分开。
+- target: 沈父
+  type: 上级/保护线负责人
+  description: 接受沈父指令进入心理咨询室。
+  knowledge: 知道沈父真实身份不止商业父亲。
+- target: 陆闻川
+  type: 流程对手
+  description: 用校安协查、监护人授权和设备检测阻断陆闻川拆分访谈。
+  knowledge: 知道陆闻川心理访谈并不单纯。
+current_goals:
+- 挡住陆闻川转场与拆分流程
+- 在不暴露异控局身份的前提下带三名学生离开污染现场
+- 收集灰蓝污染证据
+location: 临川一中医务楼心理咨询室
+core_triangle:
+  desire: 保护沈清辞，并维持沈家普通安保外壳
+  ability: 异控局保护组训练、校安/维修外壳、流程授权、现场检测和挡门执行力
+  obstacle: 不能公开亮明组织身份，且陆闻川与训练场外援正在用合法流程和污染双线施压
+motivation_type: mission
+growth_stage: triggered
+backstory: 长期伪装成沈家别墅的维修与安保人员之一。第54章通过侧门进入心理咨询室，成为沈家保护组/异控局保护线首次显性露出的角色。
+first_appearance: 54
+last_active: 54
+is_pov: false

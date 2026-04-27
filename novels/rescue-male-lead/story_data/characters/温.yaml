@@ -1,0 +1,41 @@
+name: 温
+aliases:
+- 训练场毒系外援
+- 温先生
+physical_description: 脸常藏在阴影里，左耳后有一块旧紫色灼伤疤，戴黑色手套，随身银色药盒里装着灰蓝色粉末；说话时不急，像在欣赏一场还没开始的实验。
+personality_traits:
+- 阴毒
+- 轻慢
+- 强者至上
+- 不完全听令
+- 擅长污染与诱导
+knowledge_state: 第54章首次出场。来自强者至上训练场，过法器到当前线后异能被削弱，但仍能使用毒、药剂、粉末和污染手段制造风险；与陆闻川合作介入心理咨询室线，但并不完全按陆闻川干净流程行动。
+emotional_state: 对学校与普通学生秩序有轻蔑感，享受让目标做选择而非直接杀人的过程。
+relationships:
+- target: 陆闻川
+  type: 临时合作者
+  description: 接受或借用陆闻川的信息进入校园线，但不完全服从。
+  knowledge: 知道陆闻川要求不要致命，却打算用污染逼目标选择。
+- target: 沈清辞
+  type: 目标
+  description: 认门人，训练场与回收线都需要逼近的关键对象。
+  knowledge: 知道她被保护，直接致死不是最佳方向。
+- target: 顾夜舟
+  type: 目标
+  description: 钥匙07，命线互锁中的另一端。
+  knowledge: 知道他与沈清辞绑定，需通过选择和分离撬动。
+current_goals:
+- 用灰蓝污染影响心理咨询室现场
+- 逼沈清辞和顾夜舟在污染与转场中做出危险选择
+- 试探命线互锁和异控局保护组反应
+location: 临川一中医务楼外地下停车区
+core_triangle:
+  desire: 证明训练场的强者规则能撬开当前线保护
+  ability: 毒系污染、药剂、粉末、感官扰乱和诱导选择
+  obstacle: 跨线法器削弱了能力，学校环境受陆闻川流程和异控局保护组限制
+motivation_type: mission
+growth_stage: initial
+backstory: 强者至上训练场派来的毒系外援之一，信奉强者支配资源。当前线能力被削弱，但阴毒手段仍棘手。
+first_appearance: 54
+last_active: 54
+is_pov: false

@@ -7,7 +7,8 @@ def test_detect_prompt_profile_defaults_to_generic() -> None:
     profile = detect_prompt_profile("", "")
 
     assert profile.key == "generic"
-    assert profile.theme_review_enabled is False
+    assert profile.third_editor_enabled is True
+    assert profile.third_editor_mode == "story"
 
 
 def test_detect_prompt_profile_recognizes_tomato_projects() -> None:
@@ -17,7 +18,8 @@ def test_detect_prompt_profile_recognizes_tomato_projects() -> None:
     )
 
     assert profile.key == "tomato_romance"
-    assert profile.theme_review_enabled is False
+    assert profile.third_editor_enabled is True
+    assert profile.third_editor_mode == "story"
 
 
 def test_detect_prompt_profile_recognizes_literary_microfeel_projects() -> None:
@@ -27,4 +29,5 @@ def test_detect_prompt_profile_recognizes_literary_microfeel_projects() -> None:
     )
 
     assert profile.key == "literary_microfeel"
-    assert profile.theme_review_enabled is True
+    assert profile.third_editor_enabled is True
+    assert profile.third_editor_mode == "literary_theme"

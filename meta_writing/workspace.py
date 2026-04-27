@@ -92,6 +92,7 @@ class ProjectRuntimePaths:
     learned_rules: Path
     auto_runner_log: Path
     editorial_report: Path
+    editorial_reviews_dir: Path
 
     @classmethod
     def for_project(cls, project_dir: str | Path) -> "ProjectRuntimePaths":
@@ -100,6 +101,7 @@ class ProjectRuntimePaths:
             learned_rules=project_dir / "learned_rules.md",
             auto_runner_log=project_dir / "auto_runner_log.md",
             editorial_report=project_dir / "editorial_report.md",
+            editorial_reviews_dir=project_dir / "editorial_reviews",
         )
 
 

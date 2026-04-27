@@ -1,48 +1,301 @@
 beats:
-- chapter: 6
-  beat_type: minor
-  description: 顾夜舟主动告诉沈清辞橘猫叫「小白」——这个主动分享的行为对于一个习惯隐藏自己的人来说是巨大的突破，让沈清辞感受到他内心深处渴望被看见
-  delivered: true
-- chapter: 6
+- chapter: 1
   beat_type: major
-  description: 沈清辞说出"你其实不想伤害任何人"，这句话精准击中顾夜舟最脆弱的心理防线，让一直伪装冷漠的他在那一瞬间露出了真正的裂痕
+  description: 重生、系统激活和第一盒草莓牛奶一起落下，主线救赎钩子直接成立
   delivered: true
-- chapter: 6
-  beat_type: minor
-  description: 顾夜舟承认没扔牛奶盒，沈清辞站在走廊里感觉心脏被人轻轻捏了一下，这个甜蜜的细节确认了两人之间正在萌芽的特殊联系
+- chapter: 3
+  beat_type: major
+  description: 9月7日暴走线第一次被改写，顾夜舟开始真正动摇
   delivered: true
-- chapter: 6
-  beat_type: minor
-  description: 读心术传来顾夜舟内心"她为什么总挡在我前面"的念头，以及系统提示"好感度+2"的瞬间——这是沈清辞确认他并非冷漠无情的关键时刻
+- chapter: 10
+  beat_type: major
+  description: 第一次牵手，把男女主关系从试探推进到明显越界
   delivered: true
-- chapter: 6
-  beat_type: minor
-  description: 顾夜舟说"回家再扔"时的停顿和沈清辞的领悟——她明白了他不扔的不是牛奶，而是那份善意。这是一个温柔的小甜蜜点，在日常校园互动中穿插的情感调节。
+- chapter: 14
+  beat_type: medium
+  description: 沈清辞摸到青岚研究所和旧项目的实体档案，校园线开始并入旧案线
+  delivered: true
+- chapter: 20
+  beat_type: major
+  description: 顾夜舟亲口承认顾启明身份，两人并肩站进旧案中心
+  delivered: true
+- chapter: 25
+  beat_type: major
+  description: 沈清辞独自赴约，被正式拉入观察室级别的核心布局
+  delivered: true
+- chapter: 27
+  beat_type: major
+  description: 镜面载体失稳，“苏晚宁”不再是稳定角色而是一条身份线
+  delivered: true
+- chapter: 28
+  beat_type: major
+  description: 沈清辞确认前世真正死因，陆闻川转入校园公开场
+  delivered: true
+- chapter: 30
+  beat_type: major
+  description: 林雾坦白镜面身份壳，沈清辞第一次真正触发识伪共振
+  delivered: true
+- chapter: 31
+  beat_type: medium
+  description: 陈渡把“幸存样本”线正式带到台前，成人礼从普通校园活动升级成情感高光、公开流程与旧案渗透交叠的关键节点
+  delivered: true
+- chapter: 32
+  beat_type: medium
+  description: 试礼服、第一张正式合照和领誓名单一起落地，让成人礼这条线既承担感情升温，也承担公开场域里的危险试探
+  delivered: true
+- chapter: 33
+  beat_type: medium
+  description: 彩排让男女主在全校面前继续发光，同时把舞台追光和顾夜舟站位被绑定的危险第一次打成明牌
+  delivered: true
+- chapter: 34
+  beat_type: medium
+  description: 成人礼正式场继续把男女主推到最亮的位置，同时把威胁范围从礼堂内部扩展到校门外的暗线观察者
+  delivered: true
+- chapter: 35
+  beat_type: medium
+  description: 成人礼散场后的签名、合影和偷溜透气把高三地下恋落到更日常的甜度上，同时用顾母旧工作牌把舞台线和上一代痕迹连到了一起
+  delivered: true
+- chapter: 36
+  beat_type: medium
+  description: 成人礼感想和班级日常稳住节奏后，顾母旧工作牌触发短暂共振，并把男女主带到B-17已被提前取走的旧放映间
+  delivered: true
+- chapter: 37
+  beat_type: major
+  description: 第三方人员在门外谈话里抬出顾澜转移链、回线锚点和07号保护对象，让顾母未死线与沈清辞回溯机制同时进入明线边缘
+  delivered: true
+- chapter: 38
+  beat_type: medium
+  description: 八百字惩罚和成人礼照片墙把节奏拉回高三日常，同时用系统保密提示、32%稳定度、许知衡名单和上一世后期顾夜舟递证据的回忆，把回线原因、前世错误关系线和男女主前世羁绊继续往前推
+  delivered: true
+- chapter: 39
+  beat_type: medium
+  description: 许知衡正式亮相，亲和外壳和信任诱导气质进入明场；沈清辞读心术在他身上失真，安排表背面的07浅痕把许知衡线和顾夜舟编号直接连上
+  delivered: true
+- chapter: 43
+  beat_type: major
+  description: 旧试剂准备室门锁钩子落到实体物证，S-QC、水样二次投放和“别让她喝第二瓶”把沈清辞遗忘顾夜舟的代价推到明线边缘
+  delivered: true
+- chapter: 44
+  beat_type: medium
+  description: 李佳佳从自然掩护位升级为交错记忆观察者，补足她站沈清辞的情感原因，并把第二瓶水推进到“可信同学可能曾递出”的新风险
+  delivered: true
+- chapter: 45
+  beat_type: medium
+  description: 第二瓶水的递送细节和喝后失忆反应正式落地，自动贩卖机冷光又把男女主的羁绊前置到更早的样本出逃夜
+  delivered: true
+- chapter: 47
+  beat_type: medium
+  description: 楼梯间短战斗用沈清辞散打补现实能力坑，接触保护规则首次显性触发，青鲤作为旧部苏醒登场并把紧张主线转出轻喜剧反差
+  delivered: true
+- chapter: 48
+  beat_type: major
+  description: 顾夜舟视角上一条线专题回顾，补出青鲤救援、契约者双网、李佳佳毁门挡灾和沈清辞单方协议，把旧部线从登场推进到核心机制
+  delivered: true
+- chapter: 49
+  beat_type: medium
+  description: 化学楼参观被短时记忆裁剪和安全隐患理由顺利收尾，旧部第一顿完整饭局落地，沈清辞向顾夜舟披露系统存在，单方协议开始表现为疼痛与心动单向共感
+  delivered: true
+- chapter: 50
+  beat_type: medium
+  description: 清舟私下正式确认关系，旧部和李佳佳分别获得临时落脚保护点，许知衡从陆闻川处获得旧线片段但情感争夺窗口关闭
+  delivered: true
+- chapter: 51
+  beat_type: medium
+  description: 青鲤视角补出顾夜舟上一条线救旧部与远程护沈清辞的情感源头，当前校园线进入百日誓师，清舟目标大学同城落点成立，镜面线转为陆闻川亲自接管的心理摸排流程
+  delivered: true
+- chapter: 52
+  beat_type: major
+  description: 陆闻川心理摸排正式落地并锁定S-QC、07和LJJ，李佳佳初步觉醒治愈/稳定能力，许知衡与陆闻川阵营裂缝显露，旧港回忆带出名字来源和双二十四岁终局记录
+  delivered: true
+- chapter: 53
+  beat_type: major
+  description: 医务楼心理访谈从单方筛查变成三方暗战，许知衡越权改写流程背刺陆闻川，旧港通讯器显出分支路线并以“访谈别分开”偷偷介入
+  delivered: true
+- chapter: 54
+  beat_type: major
+  description: 异控局保护线、顾澜半在线、命线互锁和训练场毒系外援同时压入心理咨询室现场
   delivered: true
 hooks:
-- chapter: 6
+- chapter: 1
   hook_type: suspense
-  description: 沈清辞收到了关于顾夜舟的威胁短信却没有告诉他，选择自己扛下——她隐瞒了什么？顾夜舟三天后的暴走是否会如期而至？
+  description: 9月7日暴走倒计时启动，顾夜舟会不会信沈清辞
   position: end
-- chapter: 6
+- chapter: 8
   hook_type: suspense
-  description: 顾夜舟追问"你说的'先回来'是什么意思"——这个问题直指沈清辞重生的核心秘密，她必须在暴露与隐藏之间做出选择
+  description: X第一次从幕后露出轮廓，校园霸凌背后不再只是白莲花个人作恶
   position: end
-- chapter: 6
+- chapter: 14
   hook_type: suspense
-  description: 系统发布新任务要求24小时内与顾夜舟进行30秒以上有身体接触的对话，沈清辞需要想办法在不显得刻意的情况下完成这个任务
+  description: 青岚研究所和旧档案进入视野，沈父线开始发沉
   position: end
-- chapter: 6
-  hook_type: suspense
-  description: 顾夜舟留下"回头再说"离开，但沈清辞内心知道三天后可能发生的事，这段时间里苏晚宁的动向和"回头再说"的承诺都充满未知
-  position: end
-- chapter: 6
+- chapter: 20
   hook_type: emotional
-  description: 沈清辞回想起梦里那只会掐住她脖子的手，与现实中顾夜舟接住牛奶的手形成对比。她深吸一口气，庆幸"至少今天没有做噩梦"——暗示噩梦（前世记忆）仍然存在，但她正在努力改变这条线。
+  description: 顾启明身份坐实，男女主从校园拉扯转进并肩查旧案
+  position: end
+- chapter: 25
+  hook_type: conflict
+  description: 沈清辞被正式作为顾夜舟的引线和变量盯上
+  position: end
+- chapter: 28
+  hook_type: reversal
+  description: 前世死因被改写成陆闻川下手，旧案和重生记忆彻底并线
+  position: end
+- chapter: 29
+  hook_type: suspense
+  description: 陆闻川公开进校，中午的会面成为下一次摊牌入口
+  position: end
+- chapter: 30
+  hook_type: reversal
+  description: “苏晚宁”被拆成镜面身份壳，真正的故事被推迟到更大的舞台
+  position: end
+- chapter: 31
+  hook_type: suspense
+  description: 成人礼即将同时迎来礼服高光、第一张合照、校领导演讲与更大样本线入口，陆闻川却只是最先露面的那只螳螂
+  position: end
+- chapter: 32
+  hook_type: suspense
+  description: 乔知夏提前听见本不该响起的追光异响，沈清辞和顾夜舟却被一并推上成人礼舞台中央
+  position: end
+- chapter: 33
+  hook_type: suspense
+  description: 乔知夏拍到追光落点里的模糊人影，证明成人礼正式场的舞台中心很可能早就盯上了顾夜舟
+  position: end
+- chapter: 34
+  hook_type: suspense
+  description: 流程单里多出的两名外场设备巡查和校门外消失的套牌车，说明下一步的局已经不只在学校里
+  position: end
+- chapter: 35
+  hook_type: suspense
+  description: 顾夜舟在成人礼纪念封套里翻出母亲留下的旧设备组工作牌，说明这场舞台上的局和顾母过去可能早就连在了一起
+  position: end
+- chapter: 36
+  hook_type: suspense
+  description: 门外不明人士确认B-17已经被拿走，也确认沈清辞和顾夜舟已经被看见，但暂时不准备动他们
+  position: end
+- chapter: 37
+  hook_type: suspense
+  description: 系统确认沈清辞是回线锚点S-QC，顾夜舟是保护对象07，当前稳定度只有31%
+  position: end
+- chapter: 38
+  hook_type: emotional
+  description: 前世关键偏差对象许知衡即将以联校优秀学生代表身份进入临川一中，沈清辞必须在顾夜舟察觉异常前稳住锚点
+  position: end
+- chapter: 39
+  hook_type: suspense
+  description: 下午分组讨论把沈清辞、顾夜舟和许知衡分到同一组，安排表背面的07浅痕暗示许知衡知道顾夜舟编号
+  position: end
+- chapter: 40
+  hook_type: suspense
+  description: 顾夜舟和沈清辞刚对上南门器材室雨夜的双向记忆，许知衡就站到空教室门外，像是掐着记忆覆写层松动的时间赶来
+  position: end
+- chapter: 41
+  hook_type: suspense
+  description: 许知衡递来的水瓶瓶底出现与顾母旧工作牌、B-17线相似的蓝色压痕，三楼旧试剂准备室成为下一扇被画好的门
+  position: end
+- chapter: 42
+  hook_type: suspense
+  description: 实验楼管理员报告三楼封闭区门锁响起且监控黑屏，许知衡敲击滴管后，旧试剂准备室方向传来门开的声音
+  position: end
+- chapter: 43
+  hook_type: reversal
+  description: 顾夜舟拿到防水标签，发现沈清辞曾“忘过他一次”，且不能再喝第二瓶水
+  position: end
+- chapter: 44
+  hook_type: reversal
+  description: 李佳佳坦白自己会串到交错旧线，并想起自己可能曾给沈清辞递过第二瓶水
+  position: end
+- chapter: 45
+  hook_type: emotional
+  description: 李佳佳意识到眼前这次共同闪回，也许不是男女主又一次认出彼此，而是他们真正意义上的第一次
+  position: end
+- chapter: 46
+  hook_type: reversal
+  description: 自动贩卖机吐出票据，确认当前线沈清辞已经被标记为本线S-QC，且回收优先级最高，敌方目标从“让她忘记”升级为“把她带回原线”
+  position: end
+- chapter: 47
+  hook_type: suspense
+  description: 执行者从攻击失败中判断出认门人与钥匙在一起时杀不掉，说明敌方已经开始识别这条保护规则
+  position: end
+- chapter: 48
+  hook_type: reversal
+  description: 李佳佳资料袋内侧在男女主眼里显出“沈网契约者：李佳佳，状态：未觉醒”，说明她上一条线的挡灾身份即将回到当前线
+  position: end
+- chapter: 49
+  hook_type: emotional
+  description: 沈清辞确认单向共感无法屏蔽，第一次真正感受到顾夜舟安静看她时被压在胸腔里的心跳
+  position: end
+- chapter: 50
+  hook_type: suspense
+  description: 许知衡收到陆闻川投喂的旧线片段，情感争夺窗口关闭，但针对沈清辞的回收任务继续
+  position: end
+- chapter: 51
+  hook_type: suspense
+  description: 陆闻川以百日冲刺心理摸排名义亲自接管镜面线，沈清辞、顾夜舟和李佳佳同时进入新的筛查名单
+  position: end
+- chapter: 52
+  hook_type: conflict
+  description: 广播点名沈清辞、顾夜舟、李佳佳下午第三节后参加医务楼心理访谈，陆闻川的合法流程开始正面压到三人身上
+  position: end
+- chapter: 53
+  hook_type: suspense
+  description: 旧港看到心理咨询室侧门即将开启，未知变量接近，咨询室局面将从团体访谈继续升级
+  position: end
+- chapter: 54
+  hook_type: conflict
+  description: 训练场毒系污染进入通风口，秦越挡住陆闻川转场，心理咨询室场景必须在下一章现场收束
   position: end
 tension_curve:
-- 6.0
-- 7.0
-- 4.0
-- 6.5
-- 3.5
+- 7.5
+- 7.6
+- 8.2
+- 7.4
+- 7.6
+- 7.8
+- 7.2
+- 7.9
+- 7.6
+- 8.0
+- 8.1
+- 8.2
+- 8.3
+- 8.7
+- 9.0
+- 8.9
+- 9.0
+- 9.1
+- 8.8
+- 9.0
+- 9.2
+- 8.8
+- 8.6
+- 9.4
+- 9.2
+- 9.3
+- 9.0
+- 8.4
+- 8.5
+- 8.7
+- 9.1
+- 9.3
+- 9.2
+- 8.9
+- 9.0
+- 9.4
+- 9.5
+- 9.3
+- 9.2
+- 9.0
+- 9.4
+- 8.8
+- 8.7
+- 8.5
+- 8.6
+- 8.9
+- 8.8
+- 8.2
+- 8.7
+- 8.8
+- 8.9
+- 9.0
+- 9.1
+- 9.3

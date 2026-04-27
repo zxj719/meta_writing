@@ -186,6 +186,7 @@ def test_project_runtime_files_live_under_project_dir(tmp_path: Path) -> None:
     assert paths.learned_rules == project_dir / "learned_rules.md"
     assert paths.auto_runner_log == project_dir / "auto_runner_log.md"
     assert paths.editorial_report == project_dir / "editorial_report.md"
+    assert paths.editorial_reviews_dir == project_dir / "editorial_reviews"
 
 
 def test_migrate_legacy_root_project_moves_files_into_named_project(tmp_path: Path) -> None:

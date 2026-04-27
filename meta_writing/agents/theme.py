@@ -1,15 +1,4 @@
-"""Theme Agent — cross-chapter thematic coherence review.
-
-Tracks:
-- Thematic progression (each chapter should advance, not repeat)
-- Restraint aesthetic (克制美学) violations
-- Character arc position consistency
-- Core motif consistency (glass, keys, demolition, notebooks)
-- Concept drift across chapters
-- Pattern repetition without escalation
-
-Uses MiniMax-M2.7 via the existing LLMClient.
-"""
+"""Theme/Story Agent - cross-chapter editorial review."""
 
 from __future__ import annotations
 
@@ -17,41 +6,74 @@ import json
 import logging
 import re
 from dataclasses import dataclass
-from enum import Enum
 
+from ..editorial_scorecard import EditorialScorecard, EDITORIAL_SCORECARD_PROMPT
 from ..llm import LLMClient, LLMResponse, MODEL_SONNET
+from ..prompt_profiles import GENERIC_PROFILE, PromptProfile
 
 logger = logging.getLogger(__name__)
 
 
-THEME_SYSTEM_PROMPT = """\
-你是一位专注于文学主题连贯性的资深编辑。你审查的是一部以"克制美学"为核心的中文文学小说。
-
-## 故事核心
-
-**主题**: 物体记录时间，微感者能感知这些记录——但感知到的只是影子，不是那件事本身。
-**美学原则**: 不说出来的 > 说出来的。留白是技艺，不是省略。
-**人物**: 夏浮（声音微感）、温野（温度/热量微感）、梁书（书店主，现实压力锚点）
-**弧线节奏**: 孤独→相遇→互补感知→命名声音博物馆→找到呈现方式
+STORY_EDITOR_PROMPT = """\
+你是一位负责“剧情、人物、暗线和完成度”的章节编辑。你不是纯连续性检查器，也不是纯文风编辑，你要判断这一章作为“小说章节”是否成立。
 
 ## 你的审查重点
 
-### 单章审查
-1. **主题推进**: 本章比上一章在主题理解上前进了多少？如果没有前进（只是重复了同样的感悟），标记为问题
-2. **克制性违反**: 是否有地方"说穿了"本应留给读者的内容？是否有不必要的解释或总结？
-3. **人物弧线位置**: 夏浮/温野的状态是否与其所处弧线阶段一致？（比如"已经信任"的状态不应出现在信任建立之前的章节）
-4. **意象使用**: 核心意象（玻璃、钥匙、拆迁中的建筑、笔记本）的使用是否有新的层次，还是在重复?
-
-### 跨章审查（仅在提供多章时）
-5. **概念漂移**: 某个关键概念（如"刻度"、"微感"、"密度"）的定义是否在不同章节间有不一致？
-6. **情节模式重复**: 是否有某个场景结构（如：进入空间→感知→过载→撤退→台阶上聊天）在不加递进的情况下重复出现？
+1. 这一章是否真的在推进故事，而不是空转。
+2. 主角和配角是否像活人，而不是嘴替或工具人。
+3. 信息与暗线是否藏在动作、环境、选择和对话缝隙里，而不是靠直说。
+4. 这一章是否回应了当前创作指令和上一轮要求。
+5. 如果本章是过渡章，是否仍然留下可读性、高光、关系推进或后续钩子。
 
 ## 判断标准
 
-- 只标记真正影响故事质量的问题
-- "重复"只是问题，如果重复带来了新的层次或反转则不是问题
-- 不要对感知描写的技术细节提意见（那是Style Agent的工作）
-- 主题审查关注"这一章的存在是否有必要，它给读者提供了什么新的理解"
+- 不要要求每章都必须爆大雷，但不能允许松散空转。
+- 普通生活章可以松，但松弛不等于无事发生。
+- 要特别警惕“为了满足要求，硬插一段”的痕迹。
+
+""" + EDITORIAL_SCORECARD_PROMPT + """
+
+## 输出格式
+
+```json
+{
+  "chapter_evaluated": "章节号",
+  "thematic_health": "healthy/needs_work/critical",
+  "issues": [
+    {
+      "type": "no_progression/character_flatness/info_too_direct/instruction_miss/pattern_repetition",
+      "severity": "critical/warning/info",
+      "description": "问题描述",
+      "location": "位置或段落说明",
+      "suggestion": "修改方向"
+    }
+  ],
+  "arc_position_notes": "本章在整体故事弧线中的位置判断",
+  "what_this_chapter_adds": "本章给读者的独特贡献",
+  "scorecard": {
+    "plot_tension": {"score": 0-10, "reason": "一句理由"},
+    "characters": {"score": 0-10, "reason": "一句理由"},
+    "info_design": {"score": 0-10, "reason": "一句理由"},
+    "language": {"score": 0-10, "reason": "一句理由"},
+    "instruction_fit": {"score": 0-10, "reason": "一句理由"}
+  }
+}
+```
+"""
+
+
+LITERARY_THEME_PROMPT = """\
+你是一位专注于文学主题连贯性的资深编辑。你审查的是一部以“克制美学”为核心的中文小说。
+
+## 审查重点
+
+1. 主题推进：本章是否比上一章多走了一步，而不是重复同一种感悟。
+2. 克制性：是否说穿了本该交给读者自己感受到的内容。
+3. 人物弧线位置：人物状态是否与整体弧线一致。
+4. 意象使用：核心意象有没有新层次，而不是只在重复。
+5. 跨章模式：是否机械重复了同一种场景结构或感知路径。
+
+""" + EDITORIAL_SCORECARD_PROMPT + """
 
 ## 输出格式
 
@@ -64,15 +86,29 @@ THEME_SYSTEM_PROMPT = """\
       "type": "no_progression/restraint_violation/arc_mismatch/motif_repetition/concept_drift/pattern_repetition",
       "severity": "critical/warning/info",
       "description": "问题描述",
-      "location": "章节内位置或具体章节",
+      "location": "章节内位置或章节编号",
       "suggestion": "修改方向"
     }
   ],
-  "arc_position_notes": "本章在整体弧线中的位置评估",
-  "what_this_chapter_adds": "本章对读者理解的独特贡献（即使有问题也要写）"
+  "arc_position_notes": "本章在整体弧线中的位置判断",
+  "what_this_chapter_adds": "本章给读者的新理解",
+  "scorecard": {
+    "plot_tension": {"score": 0-10, "reason": "一句理由"},
+    "characters": {"score": 0-10, "reason": "一句理由"},
+    "info_design": {"score": 0-10, "reason": "一句理由"},
+    "language": {"score": 0-10, "reason": "一句理由"},
+    "instruction_fit": {"score": 0-10, "reason": "一句理由"}
+  }
 }
 ```
 """
+
+
+def build_theme_system_prompt(prompt_profile: PromptProfile | None = None) -> str:
+    profile = prompt_profile or GENERIC_PROFILE
+    if profile.third_editor_mode == "literary_theme":
+        return LITERARY_THEME_PROMPT
+    return STORY_EDITOR_PROMPT
 
 
 @dataclass
@@ -92,19 +128,19 @@ class ThemeAgentResult:
     arc_position_notes: str
     what_this_chapter_adds: str
     raw_response: LLMResponse
+    scorecard: EditorialScorecard | None = None
 
     @property
     def has_critical(self) -> bool:
-        return any(i.severity == "critical" for i in self.issues)
+        return any(issue.severity == "critical" for issue in self.issues)
 
     def format_feedback(self) -> str:
         if not self.issues:
             return ""
-        lines = ["## 主题审查反馈\n"]
+        lines = ["## 第三编辑审查反馈", ""]
         severity_icons = {"critical": "🔴", "warning": "🟡", "info": "🔵"}
         for issue in self.issues:
-            icon = severity_icons.get(issue.severity, "🔵")
-            lines.append(f"{icon} **{issue.type}**: {issue.description}")
+            lines.append(f"{severity_icons.get(issue.severity, '🔵')} **{issue.type}**: {issue.description}")
             if issue.location:
                 lines.append(f"   位置: {issue.location}")
             lines.append(f"   建议: {issue.suggestion}")
@@ -117,7 +153,7 @@ class ThemeAgentResult:
 
 
 class ThemeAgent:
-    """Cross-chapter thematic coherence reviewer."""
+    """Cross-chapter thematic or story-editor reviewer."""
 
     def __init__(self, llm: LLMClient, model: str = MODEL_SONNET) -> None:
         self.llm = llm
@@ -129,27 +165,20 @@ class ThemeAgent:
         chapter_number: int,
         previous_chapter_summary: str = "",
         arc_context: str = "",
+        creative_guidance: str = "",
+        prompt_profile: PromptProfile | None = None,
     ) -> ThemeAgentResult:
-        """Review a single chapter for thematic coherence.
-
-        Args:
-            chapter_text: The chapter text.
-            chapter_number: Chapter number.
-            previous_chapter_summary: Summary of previous chapter for progression check.
-            arc_context: Overall arc position context.
-
-        Returns:
-            ThemeAgentResult.
-        """
         parts = [f"## 第{chapter_number}章正文\n\n{chapter_text}"]
         if previous_chapter_summary:
-            parts.append(f"\n\n## 上一章摘要（用于主题推进检查）\n\n{previous_chapter_summary}")
+            parts.append(f"\n\n## 上一章摘要\n\n{previous_chapter_summary}")
         if arc_context:
             parts.append(f"\n\n## 整体弧线背景\n\n{arc_context}")
-        parts.append(f"\n\n请对第{chapter_number}章进行主题连贯性审查，输出JSON结果。")
+        if creative_guidance.strip():
+            parts.append(f"\n\n## 当前创作指令与项目要求\n\n{creative_guidance.strip()}")
+        parts.append(f"\n\n请对第{chapter_number}章进行第三编辑审查，并输出 JSON 结果。")
 
         response = await self.llm.complete(
-            system=THEME_SYSTEM_PROMPT,
+            system=build_theme_system_prompt(prompt_profile),
             messages=[{"role": "user", "content": "".join(parts)}],
             model=self.model,
             max_tokens=4096,
@@ -159,36 +188,23 @@ class ThemeAgent:
 
     async def review_arc(
         self,
-        chapters: list[tuple[int, str]],  # [(chapter_number, text), ...]
+        chapters: list[tuple[int, str]],
         arc_context: str = "",
+        prompt_profile: PromptProfile | None = None,
     ) -> ThemeAgentResult:
-        """Review multiple chapters for cross-chapter thematic issues.
-
-        Args:
-            chapters: List of (chapter_number, text) tuples.
-            arc_context: Overall story arc context.
-
-        Returns:
-            ThemeAgentResult covering all chapters.
-        """
         chapter_range = f"{chapters[0][0]}-{chapters[-1][0]}"
-        # Use summaries for multi-chapter review to stay within context
-        summaries = []
-        for num, text in chapters:
-            # Take first 500 chars as representative sample
-            sample = text[:500].replace('\n', ' ')
-            summaries.append(f"第{num}章开头: {sample}...")
+        summaries = [
+            f"第{number}章开头：{text[:500].replace(chr(10), ' ')}..."
+            for number, text in chapters
+        ]
 
-        user_message = (
-            f"## 章节范围：第{chapter_range}章\n\n"
-            + "\n\n".join(summaries)
-        )
+        user_message = f"## 章节范围：第{chapter_range}章\n\n" + "\n\n".join(summaries)
         if arc_context:
             user_message += f"\n\n## 整体弧线背景\n\n{arc_context}"
-        user_message += f"\n\n请对第{chapter_range}章进行跨章主题审查，重点检查概念漂移和情节模式重复。"
+        user_message += f"\n\n请对第{chapter_range}章进行跨章第三编辑审查。"
 
         response = await self.llm.complete(
-            system=THEME_SYSTEM_PROMPT,
+            system=build_theme_system_prompt(prompt_profile),
             messages=[{"role": "user", "content": user_message}],
             model=self.model,
             max_tokens=4096,
@@ -198,9 +214,9 @@ class ThemeAgent:
 
     def _parse_response(self, response: LLMResponse, chapter_label: str) -> ThemeAgentResult:
         text = response.text
-        m = re.search(r"```json\s*\n?(.*?)```", text, re.DOTALL)
-        if m:
-            text = m.group(1).strip()
+        match = re.search(r"```json\s*\n?(.*?)```", text, re.DOTALL)
+        if match:
+            text = match.group(1).strip()
         else:
             start = text.find("{")
             end = text.rfind("}") + 1
@@ -215,20 +231,21 @@ class ThemeAgent:
                 chapter_evaluated=chapter_label,
                 thematic_health="unknown",
                 issues=[],
-                arc_position_notes="主题审查输出解析失败",
+                arc_position_notes="第三编辑输出解析失败",
                 what_this_chapter_adds="",
                 raw_response=response,
+                scorecard=None,
             )
 
         issues = [
             ThemeIssue(
-                type=i.get("type", ""),
-                severity=i.get("severity", "info"),
-                description=i.get("description", ""),
-                location=i.get("location", ""),
-                suggestion=i.get("suggestion", ""),
+                type=item.get("type", ""),
+                severity=item.get("severity", "info"),
+                description=item.get("description", ""),
+                location=item.get("location", ""),
+                suggestion=item.get("suggestion", ""),
             )
-            for i in data.get("issues", [])
+            for item in data.get("issues", [])
         ]
 
         return ThemeAgentResult(
@@ -238,4 +255,5 @@ class ThemeAgent:
             arc_position_notes=data.get("arc_position_notes", ""),
             what_this_chapter_adds=data.get("what_this_chapter_adds", ""),
             raw_response=response,
+            scorecard=EditorialScorecard.from_json_dict(data.get("scorecard")),
         )

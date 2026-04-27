@@ -56,6 +56,14 @@ from meta_writing.agents.writer import MIN_CHAPTER_CHARS, TARGET_CHAPTER_CHARS, 
 from meta_writing.agents.continuity import ContinuityAgent
 from meta_writing.agents.style import StyleAgent
 from meta_writing.agents.theme import ThemeAgent
+from meta_writing.editorial_scorecard import (
+    EditorialDimension,
+    EditorialReviewRound,
+    EditorialReviewTrace,
+    EDITORIAL_PASS_THRESHOLD,
+    aggregate_editorial_scorecards,
+    editorial_progress_stalled,
+)
 from meta_writing.story_bible.loader import StoryBibleLoader
 from meta_writing.story_bible.compressor import StoryBibleCompressor
 from meta_writing.story_bible.schema import (
@@ -75,7 +83,7 @@ from meta_writing.workspace import (
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MAX_REVISIONS = 3
+MAX_REVISIONS = 5
 
 
 @dataclass(eq=True)
@@ -151,11 +159,11 @@ def should_enable_theme_review(
     creator_guidance: str,
     target_satisfaction_type: str,
 ) -> bool:
-    """Theme review is only valid for restrained/micro-feel projects."""
+    """Whether the third editorial agent should run for this project."""
     return detect_prompt_profile(
         creator_guidance=creator_guidance,
         target_satisfaction_type=target_satisfaction_type,
-    ).theme_review_enabled
+    ).third_editor_enabled
 
 
 def resolve_pov_character(bible: StoryBible, branch: PlotBranch) -> str:
@@ -612,6 +620,9 @@ class ChapterRunResult:
     revision_count: int
     issues_summary: str
     theme_health: str
+    editorial_score: float
+    editorial_dimensions: dict[str, float]
+    editorial_decision: str
     new_lessons: list[str]
     bible_title: str
 
@@ -648,7 +659,7 @@ class AutoRunner:
             creator_guidance=self.creator_guidance,
             target_satisfaction_type=core.target_satisfaction_type if core else "",
         )
-        self.enable_theme_review = self.prompt_profile.theme_review_enabled
+        self.enable_theme_review = self.prompt_profile.third_editor_enabled
         self.writer_provider = normalize_writer_provider(
             writer_provider or (core.writer_provider if core else None),
         )
@@ -824,6 +835,7 @@ class AutoRunner:
                 chapter_number=chapter_number, word_count=0,
                 branch_title=selected_branch.title, branch_reasoning=branch_reasoning,
                 revision_count=0, issues_summary="(dry-run)", theme_health="n/a",
+                editorial_score=0.0,
                 new_lessons=[], bible_title="(dry-run)",
             )
 
@@ -878,6 +890,10 @@ class AutoRunner:
         revision_count = 0
         issues_summary = ""
         theme_health = "healthy" if self.enable_theme_review else "disabled"
+        editorial_score = 0.0
+        editorial_score_history: list[float] = []
+        editorial_review_rounds: list[EditorialReviewRound] = []
+        editorial_decision = "passed"
         theme_result = None
         style_result = None
         continuity_result = None
@@ -899,14 +915,16 @@ class AutoRunner:
                 bible_ctx,
                 chapter_number,
                 prompt_profile=self.prompt_profile,
+                creative_guidance=guidance,
             )
             style_result = await self.style_agent.review(
                 chapter_text=chapter_text,
                 previous_chapter_ending=prev_ending,
                 chapter_number=chapter_number,
+                creative_guidance=guidance,
+                prompt_profile=self.prompt_profile,
             )
-            # ThemeAgent: only enabled for restrained/micro-feel projects.
-            if self.enable_theme_review and iteration == 0:
+            if self.enable_theme_review:
                 prev_summary = ""
                 if chapter_number > 1 and (chapter_number - 1) in bible.chapter_summaries:
                     prev_summary = bible.chapter_summaries[chapter_number - 1].summary
@@ -919,24 +937,71 @@ class AutoRunner:
                     chapter_number=chapter_number,
                     previous_chapter_summary=prev_summary,
                     arc_context=bible_ctx.text[:800] + prev_hook_ctx,
+                    creative_guidance=guidance,
+                    prompt_profile=self.prompt_profile,
                 )
                 theme_health = theme_result.thematic_health
 
+            editorial_summary = aggregate_editorial_scorecards(
+                [
+                    getattr(continuity_result, "scorecard", None),
+                    getattr(style_result, "scorecard", None),
+                    getattr(theme_result, "scorecard", None),
+                ]
+            )
+            editorial_score = editorial_summary.overall_score
+            editorial_score_history.append(editorial_score)
+
             has_errors = any(i.severity == Severity.ERROR for i in linter_issues)
+            blockers: list[str] = []
+            if has_errors:
+                blockers.append("style_linter")
+            if continuity_result and (not continuity_result.passed or continuity_result.has_critical):
+                blockers.append("continuity")
+            if style_result and style_result.has_errors:
+                blockers.append("style")
+            if theme_result and theme_result.has_critical:
+                blockers.append("third_editor")
+            if not editorial_summary.passes_threshold(EDITORIAL_PASS_THRESHOLD):
+                blockers.append("scorecard")
             needs_revision = (
                 has_errors
                 or (continuity_result and (not continuity_result.passed or continuity_result.has_critical))
                 or (style_result and style_result.has_errors)
                 or (theme_result and theme_result.has_critical)
+                or not editorial_summary.passes_threshold(EDITORIAL_PASS_THRESHOLD)
+            )
+            editorial_review_rounds.append(
+                EditorialReviewRound(
+                    iteration=iteration + 1,
+                    overall_score=editorial_score,
+                    dimensions=dict(editorial_summary.dimensions),
+                    passed=not needs_revision,
+                    blockers=blockers,
+                )
             )
 
             if not needs_revision:
                 logger.info("ch%d: review passed on iteration %d", chapter_number, iteration + 1)
+                editorial_decision = "passed"
                 break
+
+            if editorial_progress_stalled(editorial_score_history):
+                editorial_decision = "stalled_below_threshold"
+                self._write_editorial_review_trace(
+                    chapter_number=chapter_number,
+                    final_decision=editorial_decision,
+                    rounds=editorial_review_rounds,
+                )
+                raise RuntimeError(
+                    f"Editorial score stalled below threshold for chapter {chapter_number}; "
+                    "manual intervention required."
+                )
 
             revision_count = iteration + 1
             if revision_count >= MAX_REVISIONS:
                 logger.warning("ch%d: max revisions reached, proceeding with issues", chapter_number)
+                editorial_decision = "max_revisions_reached"
                 break
 
             # Build feedback
@@ -950,6 +1015,9 @@ class AutoRunner:
                 feedback_parts.append(style_result.format_feedback())
             if theme_result and theme_result.has_critical:
                 feedback_parts.append(theme_result.format_feedback())
+            score_feedback = editorial_summary.format_feedback_for_writer(EDITORIAL_PASS_THRESHOLD)
+            if score_feedback:
+                feedback_parts.append(score_feedback)
             feedback = "\n\n".join(feedback_parts)
 
             logger.info("ch%d: revising (pass %d)...", chapter_number, revision_count)
@@ -961,6 +1029,12 @@ class AutoRunner:
                 prompt_profile=self.prompt_profile,
             )
             chapter_text = revised.chapter_text
+
+        self._write_editorial_review_trace(
+            chapter_number=chapter_number,
+            final_decision=editorial_decision,
+            rounds=editorial_review_rounds,
+        )
 
         # --- 5. Extract lessons ---
         issues_summary = self._summarize_issues(
@@ -1011,11 +1085,40 @@ class AutoRunner:
             revision_count=revision_count,
             issues_summary=issues_summary,
             theme_health=theme_health,
+            editorial_score=editorial_score,
+            editorial_dimensions={
+                dimension.value: editorial_review_rounds[-1].dimensions.get(dimension, 0.0)
+                for dimension in EditorialDimension
+            } if editorial_review_rounds else {},
+            editorial_decision=editorial_decision,
             new_lessons=new_lessons,
             bible_title=bible_title,
         )
         self._log_result(result, theme_result)
+        self._append_editorial_log_summary(result)
         return result
+
+    def _write_editorial_review_trace(
+        self,
+        chapter_number: int,
+        final_decision: str,
+        rounds: list[EditorialReviewRound],
+    ) -> None:
+        trace = EditorialReviewTrace(
+            chapter_number=chapter_number,
+            final_decision=final_decision,
+            rounds=list(rounds),
+        )
+        trace.write(self.runtime_paths.editorial_reviews_dir)
+
+    def _append_editorial_log_summary(self, result: ChapterRunResult) -> None:
+        dimension_summary = ", ".join(
+            f"{key}={value:.2f}" for key, value in sorted(result.editorial_dimensions.items())
+        )
+        with open(self.runtime_paths.auto_runner_log, "a", encoding="utf-8") as handle:
+            handle.write(f"- 评分: {result.editorial_score:.2f} ({result.editorial_decision})\n")
+            if dimension_summary:
+                handle.write(f"- 维度分: {dimension_summary}\n")
 
     def _git_commit(self, chapter_number: int) -> None:
         try:

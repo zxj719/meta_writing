@@ -8,6 +8,7 @@ events:
 - 系统发布二十四小时内完成身体接触对话的日常任务
 - 沈清辞拿着新的草莓牛奶坐到顾夜舟旁边，借聊苏晚宁的事把相处时间拖够
 - 沈清辞替他插好吸管、拍了拍他肩膀，顾夜舟没有躲，还当场把牛奶喝了
+- 沈清辞回想上一世时，不再把自己简单归因为愚蠢，而是隐约意识到自己曾被许知衡那条线牵引并忽略了顾夜舟
 characters_present:
 - 沈清辞
 - 顾夜舟
@@ -29,8 +30,10 @@ state_changes:
   field: emotional_state
   old_value: 警觉中多了一层深切的心疼；"他怕被牵连"这个念头让她内心被触动；保护顾夜舟的决心进一步加强；对顾夜舟没追问到底的行为感到一丝庆幸；对"回头再说"产生期待
   new_value: 被“那盒牛奶我没扔”这句话狠狠戳中；保护顾夜舟的决心进一步加强，也开始把“帮他摆脱孤立”当成下一阶段必须完成的事
-new_information_revealed: []
-foreshadowing_planted: []
+new_information_revealed:
+- 沈清辞上一世与许知衡线存在早期牵引，但这更像被雾推着走，而不是单纯恋爱脑
+foreshadowing_planted:
+- fs_027_xu_family_partner_and_influence
 foreshadowing_paid_off: []
 pov_character: 沈清辞
-word_count: 4237
+word_count: 3906

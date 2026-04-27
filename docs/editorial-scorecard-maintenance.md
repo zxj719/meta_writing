@@ -1,0 +1,670 @@
+# 评分体系维护手册
+
+> 适用范围：`meta_writing` 当前的章节审稿与修订闭环  
+> 目标读者：后续会持续调写作质量、调审稿标准、调修订门槛的人  
+> 当前状态：手动链路与全自动链路都已接入同一套评分与复盘机制
+
+---
+
+## 1. 这份文档的定位
+
+这份文档是评分体系的维护说明，不是运行时配置文件。
+
+它的作用是：
+
+- 解释当前评分体系到底如何工作
+- 明确每个分数、门槛、审稿记录分别由哪里产生
+- 帮你在后续调整写作质量时，快速找到应该改的代码位置
+- 降低“改了一处，另一处没同步”的风险
+
+它不直接改变运行结果。
+
+也就是说：
+
+- 修改这份 `md` 本身，不会自动改变模型行为
+- 真正生效的逻辑，仍然在 `meta_writing/` 代码里
+- 正确维护方式是：先改这份文档形成口径，再按文档同步改代码与测试
+
+---
+
+## 2. 系统总览
+
+当前评分体系的核心目标，不是“给章节打个好看分数”，而是做三件事：
+
+1. 把三位小编的主观审稿结果，统一映射成可比较的结构化分数
+2. 用硬门槛阻止“综合看着还行，但某一项已经明显塌掉”的章节混过去
+3. 给每一轮修订留下可复盘记录，方便回头定位到底是哪里总在拖后腿
+
+当前系统包含两条链路：
+
+- 手动链路：`meta_writing/orchestrator.py`
+- 全自动链路：`auto_runner.py`
+
+两条链路共用：
+
+- 同一套五维评分结构
+- 同一套综合分聚合逻辑
+- 同一套单项地板分规则
+- 同一套“修订停滞”判断
+- 同一套审稿记录落盘格式
+
+---
+
+## 3. 代码地图
+
+### 3.1 核心文件
+
+- [editorial_scorecard.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/editorial_scorecard.py)
+  评分常量、维度定义、聚合逻辑、停滞判断、审稿记录结构
+
+- [orchestrator.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/orchestrator.py)
+  手动模式章节生成与审稿修订闭环
+
+- [auto_runner.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/auto_runner.py)
+  自动模式章节生成与自修订闭环
+
+- [continuity.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/agents/continuity.py)
+  连续性审稿 agent，负责人物状态、信息流、时间线、世界规则等
+
+- [style.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/agents/style.py)
+  文风审稿 agent，负责 AI 味、断句、外貌/神态/环境缺口、节奏单一等
+
+- [theme.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/agents/theme.py)
+  第三编辑 agent
+  在番茄/通用项目中更接近“剧情编辑”
+  在文学微感项目中更接近“主题编辑”
+
+- [prompt_profiles.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/prompt_profiles.py)
+  项目类型与三位编辑的风格约束切换
+
+- [style_linter.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/style_linter.py)
+  非 LLM 的规则检查层，负责抓明显的语言模式问题
+
+- [workspace.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/workspace.py)
+  定义项目运行时文件路径，包括 `editorial_reviews/`
+
+### 3.2 测试文件
+
+- [test_editorial_scorecard.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/tests/test_editorial_scorecard.py)
+- [test_orchestrator.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/tests/test_orchestrator.py)
+- [test_auto_runner.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/tests/test_auto_runner.py)
+- [test_workspace.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/tests/test_workspace.py)
+
+如果你改评分逻辑，优先看这几组测试。
+
+---
+
+## 4. 当前五个评分维度
+
+系统当前固定使用五维评分：
+
+| 维度 key | 中文含义 | 权重 | 核心问题 |
+|---|---|---:|---|
+| `plot_tension` | 剧情张力与节奏 | 30% | 这一章有没有读下去的欲望 |
+| `characters` | 人物塑造与互动 | 25% | 角色像活人，还是像功能件 |
+| `info_design` | 信息量与暗线设计 | 20% | 信息是“展示出来”的，还是“告诉出来”的 |
+| `language` | 语言与描写质感 | 15% | 有没有明显 AI 腔，描写是否有记忆点 |
+| `instruction_fit` | 指令满足与完成度 | 10% | 是否真的回应了当前项目的创作要求 |
+
+设计意图：
+
+- `plot_tension` 权重最高，因为网文章节最先死在“读不下去”
+- `characters` 第二，因为人物一旦工具化，后续所有情感线都会空
+- `info_design` 用来约束“设定直说”和“暗线太白”
+- `language` 不是第一权重，但有单项地板分，不允许它塌
+- `instruction_fit` 权重最低，但不能缺，因为项目要求本身就是产出边界
+
+---
+
+## 5. 三个小编分别管什么
+
+### 5.1 连续性编辑 `ContinuityAgent`
+
+重点判断：
+
+- 人物状态前后是否矛盾
+- 信息流是否越权
+- 时间线是否成立
+- 世界规则是否被破坏
+- 动机是否失真
+
+它最适合抓：
+
+- “角色不该知道却知道了”
+- “关系跳级”
+- “设定突然变了”
+- “前面铺过的线后面完全没接”
+
+### 5.2 文风编辑 `StyleAgent`
+
+重点判断：
+
+- 机械语言模式
+- 模板断句
+- AI 总结腔
+- 描写缺口
+- 节奏结构回声
+
+它最适合抓：
+
+- “不是……是……”
+- “X，但Y” 连续套用
+- 为了显得有力而硬拆成很多短句
+- 外貌、神态、环境长期缺席
+
+### 5.3 第三编辑 `ThemeAgent`
+
+这个名字历史上叫 `ThemeAgent`，但当前功能已经不是单纯“主题编辑”。
+
+它现在有两种模式：
+
+- `story`
+  用于通用项目 / 番茄项目
+  本质上是“剧情完成度编辑”
+
+- `literary_theme`
+  用于微感文学项目
+  更偏“主题、意象、弧线位置”检查
+
+也就是说：
+
+- 在 `rescue-male-lead` 这类番茄项目里，它更像第三位剧情编辑
+- 在 `legacy-microfeel` 这类文学项目里，它才更像传统意义上的主题编辑
+
+这是后续维护时最容易误解的一点。
+
+---
+
+## 6. 分数是怎么聚合的
+
+聚合逻辑在 [editorial_scorecard.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/editorial_scorecard.py)。
+
+### 6.1 聚合步骤
+
+1. 三位编辑各自产出一个 `scorecard`
+2. 系统按维度先求平均
+3. 再按预设权重计算综合分
+
+也就是说，当前不是：
+
+- 某个编辑分量更大
+- 或先算每人总分再平均
+
+当前是：
+
+- 先按维度平均
+- 再做加权汇总
+
+这样做的好处是：
+
+- 维度解释更稳定
+- 更容易定位是哪一项长期偏低
+- 后续如果你想调整某一维的权重，逻辑简单清晰
+
+---
+
+## 7. 当前硬门槛
+
+当前有三层门槛。
+
+### 7.1 综合分门槛
+
+常量：
+
+- `EDITORIAL_PASS_THRESHOLD = 8.0`
+
+含义：
+
+- 综合分不到 `8.0`，章节不能视为达标
+
+### 7.2 单项地板分
+
+常量：
+
+- `EDITORIAL_DIMENSION_FLOOR = 7.0`
+
+含义：
+
+- 就算综合分已经 `>= 8.0`
+- 只要五维里有任何一项 `< 7.0`
+- 仍然不能放行
+
+这是用来防止这种情况：
+
+- 剧情和人物把总分拉高了
+- 但语言已经明显 AI 化，或者信息设计已经太白
+- 结果章节仍然被误判为“可以过”
+
+### 7.3 修订停滞门槛
+
+常量：
+
+- `EDITORIAL_MIN_IMPROVEMENT = 0.2`
+- `EDITORIAL_STAGNATION_PATIENCE = 2`
+
+含义：
+
+- 如果最近连续两轮综合分提升都 `< 0.2`
+- 判定为“修订停滞”
+
+当前处理策略：
+
+- 手动链路：停止死修，把当前稿交还人工判断
+- 自动链路：直接抛错停下，不自动提交
+
+---
+
+## 8. 手动链路如何工作
+
+入口：
+
+- [orchestrator.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/orchestrator.py)
+
+流程：
+
+1. 规划章节
+2. 选择分支
+3. 生成初稿
+4. 进入审稿循环
+5. 连续性编辑 / 文风编辑 / 第三编辑出结果
+6. 聚合分数
+7. 判断：
+   - 是否过综合分
+   - 是否踩单项地板分
+   - 是否有严重问题
+   - 是否已经停滞
+8. 未达标则继续修订
+9. 达标或停滞后交给人工 reviewer
+10. 人工确认后再提交章节与状态更新
+
+特点：
+
+- 适合你当前这种“正文人工主导、机器辅助审稿”的项目
+- 不会因为自动修订死磕到底
+- 更容易把控文风和章节口感
+
+---
+
+## 9. 自动链路如何工作
+
+入口：
+
+- [auto_runner.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/auto_runner.py)
+
+流程和手动链路类似，但差别在最后：
+
+- 达标：继续写后续流程
+- 停滞：直接抛错终止本章
+- 不会把明显没修动的章节继续自动提交
+
+特点：
+
+- 更严格
+- 更适合批量自动跑项目
+- 风险控制比以前强很多
+
+---
+
+## 10. 审稿记录产物
+
+现在每章会留下两类复盘产物。
+
+### 10.1 自动链路日志
+
+路径：
+
+- `项目根目录/auto_runner_log.md`
+
+用途：
+
+- 看每章最终概况
+- 看综合分、维度分、修订轮次
+- 快速浏览全局跑批情况
+
+### 10.2 逐章审稿记录
+
+路径：
+
+- `项目根目录/editorial_reviews/031.md`
+- `项目根目录/editorial_reviews/031.json`
+
+用途：
+
+- 逐轮看分数变化
+- 看每轮阻塞项
+- 看最后为什么是 `passed` / `stalled_below_threshold` / `max_revisions_reached`
+
+推荐使用方式：
+
+- 想看整体趋势时看 `auto_runner_log.md`
+- 想看某一章为什么总修不动时看 `editorial_reviews/<chapter>.md`
+- 想做后续脚本统计时读 `editorial_reviews/<chapter>.json`
+
+---
+
+## 11. 当前最终决策值
+
+当前审稿记录里的 `final_decision` 可能有：
+
+- `passed`
+  章节达标
+
+- `stalled_below_threshold`
+  修订多轮后分数几乎不再增长，系统判定继续修也不划算
+
+- `max_revisions_reached`
+  到了最大修订轮次仍未自然收敛
+
+后续如果你想增加更细的决策类型，比如：
+
+- `blocked_by_continuity`
+- `blocked_by_language_floor`
+- `manual_override`
+
+可以在现有结构上继续扩展。
+
+---
+
+## 12. 当前最大修订轮次
+
+当前常量：
+
+- 手动链路：`MAX_REVISION_ITERATIONS = 5`
+- 自动链路：`MAX_REVISIONS = 5`
+
+建议：
+
+- 不要盲目把这个数往上加
+- 先看 `editorial_reviews/` 里的分数是否真在涨
+
+如果分数已经连续几轮几乎不涨：
+
+- 增加轮次只会放大“越修越硬”或“越修越模板”
+
+---
+
+## 13. 你后续最常改的地方
+
+### 13.1 想调总门槛
+
+改：
+
+- `EDITORIAL_PASS_THRESHOLD`
+
+效果：
+
+- 提高：整体放行更严格
+- 降低：更容易通过，但可能混入“勉强可读”章节
+
+### 13.2 想调某一项不能太差
+
+改：
+
+- `EDITORIAL_DIMENSION_FLOOR`
+
+效果：
+
+- 提高：对短板更严格
+- 降低：允许某些维度暂时比较弱
+
+### 13.3 想调“修不动就停”的敏感度
+
+改：
+
+- `EDITORIAL_MIN_IMPROVEMENT`
+- `EDITORIAL_STAGNATION_PATIENCE`
+
+建议理解：
+
+- `MIN_IMPROVEMENT` 越大，越容易判定停滞
+- `PATIENCE` 越小，越快触发停滞
+
+### 13.4 想改五维权重
+
+改：
+
+- `DIMENSION_WEIGHTS`
+
+注意：
+
+- 改权重前，先想清楚你是在优化“章节爽感”，还是在优化“语言质感”
+- 权重调整会直接改变综合分走势
+
+### 13.5 想改某个编辑的审稿口径
+
+改：
+
+- `continuity.py`
+- `style.py`
+- `theme.py`
+- `prompt_profiles.py`
+
+原则：
+
+- 先改 agent 的职责说明和输出标准
+- 再看是否需要改维度分权重
+- 不要跳过测试直接改 prompt
+
+---
+
+## 14. 常见维护场景
+
+### 场景 A：综合分够了，但读起来还是 AI 味重
+
+优先检查：
+
+1. `language` 这一维是不是虽然及格，但仍偏高
+2. `StyleAgent` 的 prompt 是否过于宽松
+3. `style_linter.py` 是否漏抓当前高频 pattern
+
+建议动作：
+
+- 先加强 `StyleAgent`
+- 再决定是否提高 `EDITORIAL_DIMENSION_FLOOR`
+
+### 场景 B：人物线写塌了，但总分被剧情拉上去了
+
+优先检查：
+
+- `characters` 是否需要提高要求
+- 第三编辑在 `story` 模式下是否对人物互动抓得不够严
+
+建议动作：
+
+- 优先改 `ThemeAgent` 的 `story` 模式 prompt
+- 其次考虑给 `characters` 更高权重
+
+### 场景 C：系统一直修，但越修越硬
+
+优先检查：
+
+- `editorial_reviews/` 里各轮分数是不是几乎不涨
+- `feedback` 是否太多太杂
+- 某一维是否长期低分，导致每轮都在反复修同一种问题
+
+建议动作：
+
+- 不要先加轮次
+- 先降低 feedback 噪音
+- 或改成“只优先修最低一维”
+
+### 场景 D：番茄项目被文学化标准误伤
+
+优先检查：
+
+- `prompt_profiles.py`
+- 当前项目是否被错误识别为 `literary_microfeel`
+
+建议动作：
+
+- 先修 profile 识别
+- 再修 agent prompt
+- 不要先动评分权重
+
+---
+
+## 15. 建议的维护流程
+
+后续你每次想调整写作质量，建议按这个顺序走：
+
+1. 先写清楚你想提升的是哪一类问题
+   - 例如：AI 味
+   - 例如：人物像工具
+   - 例如：环境描写长期缺失
+
+2. 先判断这是哪个层的问题
+   - 评分层
+   - agent prompt 层
+   - linter 规则层
+   - profile 识别层
+
+3. 优先做最小改动
+   - 先改最相关的一层
+   - 不要同时改权重、prompt、停滞门槛三件事
+
+4. 跑定向测试
+
+建议至少跑：
+
+```bash
+python -m pytest tests/test_editorial_scorecard.py tests/test_orchestrator.py tests/test_auto_runner.py -q
+```
+
+5. 再跑全量测试
+
+```bash
+python -m pytest tests -q
+```
+
+6. 抽查审稿产物
+
+重点看：
+
+- `editorial_reviews/<chapter>.md`
+- `auto_runner_log.md`
+
+确认：
+
+- 维度分有没有朝预期变化
+- 阻塞项是否更聚焦
+- 是否出现新误伤
+
+---
+
+## 16. 维护这套体系时的几个原则
+
+### 原则 1：不要只看综合分
+
+综合分只是结果，不是诊断。
+
+真正有用的是：
+
+- 哪一维长期最低
+- 哪一轮开始不再涨
+- 哪个编辑总在提重复问题
+
+### 原则 2：不要把所有问题都交给权重解决
+
+很多问题不是“权重不对”，而是：
+
+- prompt 没说清
+- linter 没覆盖
+- profile 用错了
+
+### 原则 3：先修误判，再提门槛
+
+如果评分体系本身还经常误伤：
+
+- 先把误判修掉
+- 再提高阈值
+
+不然只会把修订成本抬高。
+
+### 原则 4：先让系统可解释，再让系统更严格
+
+现在 `editorial_reviews/` 已经是这一步的基础。
+
+你后续每次增强规则，最好都问一句：
+
+- 这条规则命中以后，我能不能在审稿记录里看懂为什么被拦住？
+
+---
+
+## 17. 当前我对这套体系的建议
+
+这部分不是“现在必须改”，而是后续值得做的方向。
+
+### 建议 1：把分数阈值逐步从代码常量外置
+
+现在这些值都在 Python 常量里，维护成本还可以，但不够灵活。
+
+后续可以考虑：
+
+- 把阈值放到项目级配置
+- 或放到独立 YAML
+
+这样不同小说可以有不同质量门槛。
+
+### 建议 2：把“最低一维优先修”做成可选策略
+
+现在 feedback 是多来源合并，信息量比较大。
+
+后续可以考虑：
+
+- 先只修最低一维
+- 下一轮再看是否切到第二低维
+
+这样更适合处理“第六章那种一章塞太多反馈，反而修硬”的情况。
+
+### 建议 3：给审稿记录增加“命中的 pattern 名称”
+
+当前已经有 blocker 和维度分，但还不够细。
+
+后续可以增加：
+
+- 命中的 AI 口癖类型
+- 命中的描写缺口类型
+- 命中的连续性错误类别
+
+这样长期统计会更有价值。
+
+### 建议 4：把第三编辑正式改名
+
+现在代码里仍叫 `ThemeAgent`，但在番茄项目里它其实是“剧情编辑”。
+
+这会带来长期认知成本。
+
+后续建议：
+
+- 改名为 `StoryEditorAgent`
+- 文学项目下再通过 mode 切到 `literary_theme`
+
+---
+
+## 18. 文档维护建议
+
+后续每次改这套体系时，建议同步更新这份文档里的四类内容：
+
+1. 常量
+2. 决策规则
+3. 审稿产物格式
+4. 推荐维护流程
+
+最少要改的章节通常是：
+
+- 第 7 节 硬门槛
+- 第 10 节 审稿记录产物
+- 第 13 节 常改位置
+- 第 17 节 维护建议
+
+---
+
+## 19. 一句话总结
+
+当前评分体系不是“给章节打分”，而是“用三位编辑的结构化审稿结果，驱动修订、阻止短板蒙混、保留可复盘证据”。
+
+后续你维护它时，优先看：
+
+- 这条规则到底在拦什么
+- 这条规则会不会误伤当前项目风格
+- 它的结果能不能在 `editorial_reviews/` 里被清楚解释出来

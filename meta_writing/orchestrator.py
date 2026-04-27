@@ -1,44 +1,41 @@
-"""Orchestrator — pipeline controller for the chapter generation workflow.
-
-Manages the full per-chapter workflow:
-1. Load Story Bible state
-2. Planner generates 2-3 plot branches
-3. Human selects a branch
-4. Writer drafts chapter
-5. Continuity Agent reviews
-6. Writer revises (up to 3 iterations)
-7. Human reviews final draft
-8. Commit: chapter text + Story Bible updates + foreshadowing updates + chapter summary
-"""
+"""Pipeline controller for manual chapter generation."""
 
 from __future__ import annotations
 
-import asyncio
 import subprocess
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Awaitable
+from typing import Any, Awaitable, Callable
 
 from .agents.continuity import ContinuityAgent, ContinuityResult
 from .agents.planner import PlannerAgent, PlannerResult, PlotBranch
 from .agents.style import StyleAgent, StyleAgentResult
+from .agents.theme import ThemeAgent, ThemeAgentResult
 from .agents.writer import (
     MIN_CHAPTER_CHARS,
     TARGET_CHAPTER_CHARS,
     WriterAgent,
     WriterResult,
 )
+from .editorial_scorecard import (
+    EDITORIAL_PASS_THRESHOLD,
+    AggregatedEditorialScore,
+    EditorialReviewRound,
+    EditorialReviewTrace,
+    aggregate_editorial_scorecards,
+    editorial_progress_stalled,
+)
 from .llm import LLMClient, MODEL_OPUS, MODEL_SONNET, build_writer_backend
 from .prompt_profiles import detect_prompt_profile
-from .story_bible.compressor import CompressedContext, StoryBibleCompressor
+from .story_bible.compressor import StoryBibleCompressor
 from .story_bible.loader import StoryBibleLoader
 from .story_bible.schema import ChapterSummary, StoryBible
-from .style_linter import StyleLinter, Severity
+from .style_linter import Severity, StyleLinter
 from .workspace import WORKFLOW_MODE_AUTOMATIC, read_project_metadata
 
 
-MAX_REVISION_ITERATIONS = 3
+MAX_REVISION_ITERATIONS = 5
 
 
 class PipelineStage(str, Enum):
@@ -56,7 +53,6 @@ class PipelineStage(str, Enum):
 
 @dataclass
 class PipelineState:
-    """Current state of the chapter generation pipeline."""
     stage: PipelineStage = PipelineStage.INIT
     chapter_number: int = 0
     planner_result: PlannerResult | None = None
@@ -64,19 +60,21 @@ class PipelineState:
     writer_result: WriterResult | None = None
     continuity_result: ContinuityResult | None = None
     style_agent_result: StyleAgentResult | None = None
+    theme_agent_result: ThemeAgentResult | None = None
+    editorial_score: AggregatedEditorialScore | None = None
+    editorial_score_history: list[float] = field(default_factory=list)
+    editorial_review_rounds: list[EditorialReviewRound] = field(default_factory=list)
     revision_count: int = 0
     error: str | None = None
 
 
-# Callback types for human-in-the-loop
 BranchSelector = Callable[[list[PlotBranch]], Awaitable[int]]
 HumanReviewer = Callable[[str, ContinuityResult | None], Awaitable[tuple[str, str]]]
-# Returns (action, notes) where action is "approve"/"reject"/"edit"
 StateChangeConfirmer = Callable[[list[dict[str, Any]]], Awaitable[bool]]
 
 
 class Orchestrator:
-    """Manages the full chapter generation pipeline."""
+    """Manages the full manual chapter generation pipeline."""
 
     def __init__(
         self,
@@ -94,16 +92,18 @@ class Orchestrator:
                 "This project is configured for automatic workflow mode. "
                 "Use auto_runner.py or switch the project back to manual workflow mode."
             )
+
         self.story_data_dir = self.project_dir / "story_data"
         self.chapters_dir = self.project_dir / "chapters"
         self.creator_guidance_path = self.project_dir / "creator_guidance.md"
+        self.editorial_reviews_dir = self.project_dir / "editorial_reviews"
         self.chapters_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize components
         self.llm = LLMClient(api_key=api_key)
         self.loader = StoryBibleLoader(self.story_data_dir)
         self.compressor = StoryBibleCompressor()
         core = self.loader.load_core()
+
         resolved_writer_provider = writer_provider or (core.writer_provider if core else "minimax")
         writer_llm, auto_writer_model = build_writer_backend(
             resolved_writer_provider,
@@ -117,21 +117,20 @@ class Orchestrator:
         self.writer = WriterAgent(writer_llm, model=resolved_writer_model)
         self.continuity = ContinuityAgent(self.llm, model=continuity_model)
         self.style_agent = StyleAgent(self.llm, model=continuity_model)
+        self.theme_agent = ThemeAgent(self.llm, model=continuity_model)
         self.style_linter = StyleLinter()
 
         self.state = PipelineState()
 
     def load_bible(self) -> StoryBible:
-        """Load the current Story Bible."""
         return self.loader.load()
 
     def get_recent_chapters_text(self, current_chapter: int, lookback: int = 3) -> str:
-        """Read the text of recent chapters for context."""
         texts = []
-        for ch in range(max(1, current_chapter - lookback + 1), current_chapter):
-            path = self.chapters_dir / f"{ch:03d}.md"
+        for chapter in range(max(1, current_chapter - lookback + 1), current_chapter):
+            path = self.chapters_dir / f"{chapter:03d}.md"
             if path.exists():
-                texts.append(f"--- 第{ch}章 ---\n{path.read_text(encoding='utf-8')}")
+                texts.append(f"--- 第{chapter}章 ---\n{path.read_text(encoding='utf-8')}")
         return "\n\n".join(texts)
 
     def _load_creator_guidance(self) -> str:
@@ -151,22 +150,13 @@ class Orchestrator:
         state_confirmer: StateChangeConfirmer,
         guidance: str = "",
     ) -> str:
-        """Run the full chapter generation pipeline.
-
-        Args:
-            branch_selector: Async callback that selects a branch (returns index).
-            human_reviewer: Async callback for human review of final draft.
-            state_confirmer: Async callback to confirm Story Bible state changes.
-            guidance: Optional guidance for the planner.
-
-        Returns:
-            The final chapter text.
-        """
-        # 1. Load state
         self.state.stage = PipelineStage.INIT
+        self.state.editorial_score_history.clear()
+        self.state.editorial_review_rounds.clear()
         bible = self.load_bible()
         chapter_number = bible.core.current_chapter + 1
         self.state.chapter_number = chapter_number
+
         creator_guidance = self._load_creator_guidance()
         merged_guidance = self._merge_guidance(creator_guidance, guidance)
         prompt_profile = detect_prompt_profile(
@@ -175,11 +165,8 @@ class Orchestrator:
         )
 
         recent_text = self.get_recent_chapters_text(chapter_number)
-        bible_context = self.compressor.compress(
-            bible, chapter_number, pov_character=None
-        )
+        bible_context = self.compressor.compress(bible, chapter_number, pov_character=None)
 
-        # 2. Plan
         self.state.stage = PipelineStage.PLANNING
         planner_result = await self.planner.plan(
             bible_context=bible_context,
@@ -190,20 +177,17 @@ class Orchestrator:
         )
         self.state.planner_result = planner_result
 
-        # 3. Human selects branch
         self.state.stage = PipelineStage.BRANCH_SELECTION
         branch_index = await branch_selector(planner_result.branches)
         selected_branch = planner_result.branches[branch_index]
         self.state.selected_branch = selected_branch
 
-        # Recompress with known active characters
         bible_context = self.compressor.compress(
             bible,
             chapter_number,
             active_character_names=selected_branch.characters_involved,
         )
 
-        # 4. Write (with auto-expansion if too short)
         self.state.stage = PipelineStage.WRITING
         writer_result = await self.writer.write_with_expansion(
             bible_context=bible_context,
@@ -218,25 +202,22 @@ class Orchestrator:
         self.state.writer_result = writer_result
         chapter_text = writer_result.chapter_text
 
-        # 5-6. Review + Revise loop
         for iteration in range(MAX_REVISION_ITERATIONS):
             self.state.stage = PipelineStage.REVIEWING
             self.state.revision_count = iteration
 
-            # 5a. Fast style lint (regex, zero-cost)
             style_issues = self.style_linter.check(chapter_text)
             style_feedback = self.style_linter.format_feedback_for_writer(style_issues)
 
-            # 5b. LLM continuity review
             continuity_result = await self.continuity.review(
                 chapter_text=chapter_text,
                 bible_context=bible_context,
                 chapter_number=chapter_number,
                 prompt_profile=prompt_profile,
+                creative_guidance=merged_guidance,
             )
             self.state.continuity_result = continuity_result
 
-            # 5c. LLM style review (pacing, tics, echoes)
             prev_ending = ""
             if chapter_number > 1:
                 prev_path = self.chapters_dir / f"{chapter_number - 1:03d}.md"
@@ -248,28 +229,88 @@ class Orchestrator:
                 chapter_text=chapter_text,
                 previous_chapter_ending=prev_ending,
                 chapter_number=chapter_number,
+                creative_guidance=merged_guidance,
+                prompt_profile=prompt_profile,
             )
             self.state.style_agent_result = style_agent_result
 
-            has_style_errors = any(
-                i.severity == Severity.ERROR for i in style_issues
-            )
+            previous_summary = ""
+            if chapter_number > 1 and (chapter_number - 1) in bible.chapter_summaries:
+                previous_summary = bible.chapter_summaries[chapter_number - 1].summary
 
-            if (continuity_result.passed and not continuity_result.has_critical
-                    and not has_style_errors
-                    and not style_agent_result.has_errors):
+            theme_agent_result = await self.theme_agent.review_chapter(
+                chapter_text=chapter_text,
+                chapter_number=chapter_number,
+                previous_chapter_summary=previous_summary,
+                arc_context=bible_context.text[:800],
+                creative_guidance=merged_guidance,
+                prompt_profile=prompt_profile,
+            )
+            self.state.theme_agent_result = theme_agent_result
+
+            editorial_score = aggregate_editorial_scorecards(
+                [
+                    continuity_result.scorecard,
+                    style_agent_result.scorecard,
+                    theme_agent_result.scorecard,
+                ]
+            )
+            self.state.editorial_score = editorial_score
+            self.state.editorial_score_history.append(editorial_score.overall_score)
+
+            has_style_errors = any(issue.severity == Severity.ERROR for issue in style_issues)
+            blockers: list[str] = []
+            if continuity_result.has_critical or not continuity_result.passed:
+                blockers.append("continuity")
+            if has_style_errors or style_agent_result.has_errors:
+                blockers.append("style")
+            if theme_agent_result.has_critical:
+                blockers.append("third_editor")
+            if not editorial_score.passes_threshold(EDITORIAL_PASS_THRESHOLD):
+                blockers.append("scorecard")
+            review_passed = (
+                continuity_result.passed
+                and not continuity_result.has_critical
+                and not has_style_errors
+                and not style_agent_result.has_errors
+                and not theme_agent_result.has_critical
+                and editorial_score.passes_threshold(EDITORIAL_PASS_THRESHOLD)
+            )
+            self.state.editorial_review_rounds.append(
+                EditorialReviewRound(
+                    iteration=iteration + 1,
+                    overall_score=editorial_score.overall_score,
+                    dimensions=dict(editorial_score.dimensions),
+                    passed=review_passed,
+                    blockers=blockers,
+                )
+            )
+            if review_passed:
+                review_trace_decision = "passed"
                 break
 
-            # Revise — combine continuity + style feedback
+            if editorial_progress_stalled(self.state.editorial_score_history):
+                review_trace_decision = "stalled_below_threshold"
+                break
+
+            if iteration == MAX_REVISION_ITERATIONS - 1:
+                review_trace_decision = "max_revisions_reached"
+                break
+
             self.state.stage = PipelineStage.REVISING
-            feedback_parts = []
+            feedback_parts: list[str] = []
             if continuity_result.has_critical or not continuity_result.passed:
                 feedback_parts.append(continuity_result.format_feedback())
             if style_feedback:
                 feedback_parts.append(style_feedback)
             if style_agent_result.issues:
                 feedback_parts.append(style_agent_result.format_feedback())
-            feedback = "\n\n".join(feedback_parts)
+            if theme_agent_result.issues:
+                feedback_parts.append(theme_agent_result.format_feedback())
+            score_feedback = editorial_score.format_feedback_for_writer(EDITORIAL_PASS_THRESHOLD)
+            if score_feedback:
+                feedback_parts.append(score_feedback)
+            feedback = "\n\n".join(part for part in feedback_parts if part.strip())
 
             revised = await self.writer.revise(
                 chapter_text=chapter_text,
@@ -280,8 +321,14 @@ class Orchestrator:
             )
             chapter_text = revised.chapter_text
             self.state.writer_result = revised
+        else:
+            review_trace_decision = "max_revisions_reached"
 
-        # 7. Human review
+        self._write_editorial_review_trace(
+            chapter_number=chapter_number,
+            final_decision=review_trace_decision,
+        )
+
         self.state.stage = PipelineStage.HUMAN_REVIEW
         action, notes = await human_reviewer(chapter_text, self.state.continuity_result)
 
@@ -291,10 +338,8 @@ class Orchestrator:
             raise RuntimeError(f"Chapter rejected by human: {notes}")
 
         if action == "edit":
-            # Human provided edited text in notes
             chapter_text = notes
 
-        # 8. Commit
         self.state.stage = PipelineStage.COMMITTING
         await self._commit_chapter(
             bible=bible,
@@ -308,6 +353,14 @@ class Orchestrator:
         self.state.stage = PipelineStage.DONE
         return chapter_text
 
+    def _write_editorial_review_trace(self, chapter_number: int, final_decision: str) -> None:
+        trace = EditorialReviewTrace(
+            chapter_number=chapter_number,
+            final_decision=final_decision,
+            rounds=list(self.state.editorial_review_rounds),
+        )
+        trace.write(self.editorial_reviews_dir)
+
     async def _commit_chapter(
         self,
         bible: StoryBible,
@@ -317,64 +370,47 @@ class Orchestrator:
         continuity_result: ContinuityResult | None,
         state_confirmer: StateChangeConfirmer,
     ) -> None:
-        """Atomic commit: save chapter + update Story Bible + git commit."""
-        # Save chapter text
         chapter_path = self.chapters_dir / f"{chapter_number:03d}.md"
         chapter_path.write_text(chapter_text, encoding="utf-8")
 
-        # Extract state changes from continuity review
         state_changes: list[dict[str, Any]] = []
         if continuity_result and continuity_result.state_changes:
             state_changes = [
                 {
-                    "character": sc.character,
-                    "field": sc.field,
-                    "old_value": sc.old_value,
-                    "new_value": sc.new_value,
+                    "character": change.character,
+                    "field": change.field,
+                    "old_value": change.old_value,
+                    "new_value": change.new_value,
                 }
-                for sc in continuity_result.state_changes
+                for change in continuity_result.state_changes
             ]
 
-        # Human confirms state changes before writing to Story Bible
         if state_changes:
             confirmed = await state_confirmer(state_changes)
             if confirmed:
                 self._apply_state_changes(bible, state_changes)
 
-        # Update chapter counter
         bible.core.current_chapter = chapter_number
-
-        # Create chapter summary (minimal — full extraction is a future enhancement)
-        summary = ChapterSummary(
+        bible.chapter_summaries[chapter_number] = ChapterSummary(
             chapter_number=chapter_number,
             summary=selected_branch.outline[:200],
             characters_present=selected_branch.characters_involved,
             word_count=len(chapter_text),
         )
-        bible.chapter_summaries[chapter_number] = summary
 
-        # Save everything
         self.loader.save(bible)
-
-        # Git commit (atomic)
         self._git_commit(chapter_number)
 
-    def _apply_state_changes(
-        self, bible: StoryBible, changes: list[dict[str, Any]]
-    ) -> None:
-        """Apply confirmed state changes to the Story Bible."""
+    def _apply_state_changes(self, bible: StoryBible, changes: list[dict[str, Any]]) -> None:
         for change in changes:
-            char_name = change["character"]
-            char = bible.characters.get(char_name)
-            if not char:
+            character = bible.characters.get(change["character"])
+            if character is None:
                 continue
             field_name = change["field"]
-            new_value = change["new_value"]
-            if hasattr(char, field_name):
-                setattr(char, field_name, new_value)
+            if hasattr(character, field_name):
+                setattr(character, field_name, change["new_value"])
 
     def _git_commit(self, chapter_number: int) -> None:
-        """Create an atomic git commit for the chapter + Story Bible updates."""
         try:
             subprocess.run(
                 ["git", "add", "story_data/", "chapters/"],
@@ -389,5 +425,4 @@ class Orchestrator:
                 capture_output=True,
             )
         except subprocess.CalledProcessError:
-            # Non-fatal: log but don't crash the pipeline
             pass

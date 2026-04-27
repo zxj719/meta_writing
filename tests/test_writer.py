@@ -6,7 +6,12 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from meta_writing.agents.writer import WriterAgent, _count_chinese_chars
+from meta_writing.agents.writer import (
+    WriterAgent,
+    _count_chinese_chars,
+    build_revision_system_prompt,
+    build_writer_system_prompt,
+)
 from meta_writing.llm import LLMClient, LLMResponse
 from meta_writing.negative_examples import NEGATIVE_EXAMPLES, format_examples_for_prompt
 from meta_writing.prompt_profiles import detect_prompt_profile
@@ -157,6 +162,46 @@ class TestWriterAgent:
         call_args = mock_llm.complete.call_args
         user_msg = call_args.kwargs["messages"][0]["content"]
         assert creative_guidance in user_msg
+
+
+class TestWriterPrompts:
+    def test_writer_prompt_requires_appearance_expression_and_environment(self):
+        prompt = build_writer_system_prompt()
+
+        assert "外貌" in prompt
+        assert "神态" in prompt
+        assert "环境" in prompt
+
+    def test_writer_prompt_warns_against_mechanical_scaffolds(self):
+        prompt = build_writer_system_prompt()
+
+        assert "机械" in prompt
+        assert "但" in prompt
+        assert "短句" in prompt
+
+    def test_writer_prompt_warns_against_negation_parallelism_and_formulaic_breaks(self):
+        prompt = build_writer_system_prompt()
+
+        assert "不是……是……" in prompt
+        assert "断句" in prompt
+        assert "总结句" in prompt
+
+    def test_writer_prompt_warns_against_new_template_tics(self):
+        prompt = build_writer_system_prompt()
+
+        assert "这……太……" in prompt
+        assert "不是，是" in prompt
+        assert "连续三次单字/双字成段" in prompt
+        assert "脸色沉下去" in prompt
+        assert "眼神冷下去" in prompt
+        assert "外貌" in prompt
+
+    def test_revision_prompt_requires_targeted_description_backfill(self):
+        prompt = build_revision_system_prompt()
+
+        assert "外貌" in prompt
+        assert "神态" in prompt
+        assert "环境" in prompt
 
 
 class TestAutoExpansion:
