@@ -115,6 +115,22 @@ beats:
   beat_type: major
   description: 异控局保护线、顾澜半在线、命线互锁和训练场毒系外援同时压入心理咨询室现场
   delivered: true
+- chapter: 55
+  beat_type: major
+  description: 心理咨询室污染场被秦越、沈清辞和顾夜舟共同顶住，顾夜舟控制权从控物跃迁到控人和能力链路，十分钟临时控制态开启，同时老公寓旧部围剿线爆发
+  delivered: true
+- chapter: 56
+  beat_type: major
+  description: 顾夜舟在沈清辞监护下用十分钟控制态远程接入老公寓围剿，旧部羁绊和控制权三阶段正式落地，同时揭开陆闻川复活妹妹的执念动机
+  delivered: true
+- chapter: 57
+  beat_type: major
+  description: 旧部三成觉醒完成反攻，顾夜舟第一次十分钟高控收束并确认仅为旧线巅峰十分之一，沈清辞决定把顾夜舟和旧部接回沈宅，李佳佳毒点与陆星禾路径相连
+  delivered: true
+- chapter: 58
+  beat_type: medium
+  description: 沈宅成为临时大本营，沈父承认自己也是上条线来人并和沈清辞开启父女信息谈判，陆闻川换脸成数学代课老师盯上李佳佳
+  delivered: true
 hooks:
 - chapter: 1
   hook_type: suspense
@@ -244,6 +260,22 @@ hooks:
   hook_type: conflict
   description: 训练场毒系污染进入通风口，秦越挡住陆闻川转场，心理咨询室场景必须在下一章现场收束
   position: end
+- chapter: 55
+  hook_type: conflict
+  description: 旧港通讯器显示老公寓围剿中、四名旧部生命点全红，07网心控制态倒计时09:59，沈清辞必须监护顾夜舟进入下一场
+  position: end
+- chapter: 56
+  hook_type: conflict
+  description: 旧港通讯器确认训练场目标是逼07进入未知第四阶段，沈清辞要求顾夜舟到门口为止不准越线
+  position: end
+- chapter: 57
+  hook_type: suspense
+  description: 沈清辞带顾夜舟和旧部回沈宅，准备和沈父严肃谈保护组、异控局、顾澜坐标与下一步安全安排
+  position: end
+- chapter: 58
+  hook_type: suspense
+  description: 陆闻川以数学代课老师周启明身份圈定李佳佳课外辅导，准备观察她的灰蓝毒点状态
+  position: end
 tension_curve:
 - 7.5
 - 7.6
@@ -299,3 +331,7 @@ tension_curve:
 - 9.0
 - 9.1
 - 9.3
+- 9.5
+- 9.6
+- 9.2
+- 8.8

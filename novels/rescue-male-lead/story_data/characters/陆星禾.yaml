@@ -1,0 +1,27 @@
+name: 陆星禾
+aliases:
+- 陆闻川妹妹
+physical_description: 十七岁去世前脸色苍白，病房玻璃后瘦得像随时会被雨声盖住；葬礼记忆中与白菊、雨声和陆闻川掌心治愈光一起出现。
+personality_traits:
+- 温和
+- 早逝
+- 陆闻川执念核心
+knowledge_state: 第56章通过陆闻川回忆首次出现。她死于异能者异能污染导致的器官衰竭，陆闻川作为医生未能救回她；她的死亡直接推动陆闻川追求门后复活力量。
+emotional_state: 已故，只作为陆闻川创伤和执念源头存在。
+relationships:
+- target: 陆闻川
+  type: 兄妹
+  description: 她的死亡让陆闻川觉醒治愈异能，也让他痛恨治愈无法起死回生。
+  knowledge: 陆闻川为复活她而走向实验台、镜面线和门后力量。
+current_goals: []
+location: 陆闻川回忆中
+core_triangle:
+  desire: ''
+  ability: ''
+  obstacle: ''
+motivation_type: memory
+growth_stage: memory
+backstory: 因异能污染器官衰竭死亡。葬礼上陆闻川治愈异能觉醒，却只能治好白菊，不能复活她，这成为陆闻川后续所有镜面和门后力量执念的起点。
+first_appearance: 56
+last_active: 56
+is_pov: false
