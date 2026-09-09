@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
 from meta_writing.llm import AgentNotFoundError, AgentSpec, detect_agent
@@ -165,3 +168,122 @@ def test_custom_command_folds_system_into_stdin():
     assert argv == ["my-agent", "--flag"]
     assert "SYS" in stdin_text
     assert "USER" in stdin_text
+
+
+# --- complete(): 子进程调用、解析、重试 ---
+
+from meta_writing.llm import AgentClient, AgentInvocationError, TokenUsage
+
+
+def _fake_process(stdout: str, returncode: int = 0, stderr: str = ""):
+    proc = MagicMock()
+    proc.communicate = AsyncMock(return_value=(stdout.encode("utf-8"), stderr.encode("utf-8")))
+    proc.returncode = returncode
+    proc.kill = MagicMock()
+    return proc
+
+
+CLAUDE_OK = json.dumps({
+    "type": "result",
+    "subtype": "success",
+    "is_error": False,
+    "result": "生成的正文",
+    "usage": {"input_tokens": 100, "output_tokens": 50},
+    "total_cost_usd": 0.25,
+    "modelUsage": {"claude-opus-4-8": {}},
+})
+
+
+def test_token_usage_accumulates_cost():
+    usage = TokenUsage()
+    usage.add({"input_tokens": 10, "output_tokens": 5}, cost_usd=0.5)
+    usage.add({"input_tokens": 20, "output_tokens": 5}, cost_usd=0.25)
+
+    assert usage.input_tokens == 30
+    assert usage.output_tokens == 10
+    assert usage.cost_usd == pytest.approx(0.75)
+
+
+@pytest.mark.asyncio
+async def test_complete_parses_claude_json(monkeypatch):
+    spec = AgentSpec(kind="claude", argv=("/usr/bin/claude",))
+    create = AsyncMock(return_value=_fake_process(CLAUDE_OK))
+    monkeypatch.setattr("meta_writing.llm.asyncio.create_subprocess_exec", create)
+
+    client = AgentClient(agent=spec)
+    response = await client.complete("SYS", [{"role": "user", "content": "USER"}])
+
+    assert response.text == "生成的正文"
+    assert response.usage == {"input_tokens": 100, "output_tokens": 50}
+    assert response.model == "claude-opus-4-8"
+    assert client.usage.input_tokens == 100
+    assert client.usage.cost_usd == pytest.approx(0.25)
+
+
+@pytest.mark.asyncio
+async def test_complete_sends_prompt_on_stdin(monkeypatch):
+    spec = AgentSpec(kind="claude", argv=("/usr/bin/claude",))
+    proc = _fake_process(CLAUDE_OK)
+    create = AsyncMock(return_value=proc)
+    monkeypatch.setattr("meta_writing.llm.asyncio.create_subprocess_exec", create)
+
+    client = AgentClient(agent=spec)
+    await client.complete("SYS", [{"role": "user", "content": "USER-MESSAGE"}])
+
+    sent = proc.communicate.await_args.kwargs["input"].decode("utf-8")
+    assert sent == "USER-MESSAGE"
+
+
+@pytest.mark.asyncio
+async def test_complete_retries_on_is_error_then_succeeds(monkeypatch):
+    spec = AgentSpec(kind="claude", argv=("/usr/bin/claude",))
+    failing = json.dumps({"is_error": True, "result": "rate limited"})
+    create = AsyncMock(side_effect=[_fake_process(failing), _fake_process(CLAUDE_OK)])
+    monkeypatch.setattr("meta_writing.llm.asyncio.create_subprocess_exec", create)
+    monkeypatch.setattr("meta_writing.llm.asyncio.sleep", AsyncMock())
+
+    client = AgentClient(agent=spec)
+    response = await client.complete("SYS", [{"role": "user", "content": "U"}])
+
+    assert response.text == "生成的正文"
+    assert create.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_complete_retries_on_invalid_json(monkeypatch):
+    spec = AgentSpec(kind="claude", argv=("/usr/bin/claude",))
+    create = AsyncMock(side_effect=[_fake_process("not json"), _fake_process(CLAUDE_OK)])
+    monkeypatch.setattr("meta_writing.llm.asyncio.create_subprocess_exec", create)
+    monkeypatch.setattr("meta_writing.llm.asyncio.sleep", AsyncMock())
+
+    client = AgentClient(agent=spec)
+    response = await client.complete("SYS", [{"role": "user", "content": "U"}])
+
+    assert response.text == "生成的正文"
+
+
+@pytest.mark.asyncio
+async def test_complete_raises_after_retries_exhausted(monkeypatch):
+    spec = AgentSpec(kind="claude", argv=("/usr/bin/claude",))
+    create = AsyncMock(return_value=_fake_process("", returncode=1, stderr="boom"))
+    monkeypatch.setattr("meta_writing.llm.asyncio.create_subprocess_exec", create)
+    monkeypatch.setattr("meta_writing.llm.asyncio.sleep", AsyncMock())
+
+    client = AgentClient(agent=spec)
+    with pytest.raises(AgentInvocationError, match="boom"):
+        await client.complete("SYS", [{"role": "user", "content": "U"}])
+
+    assert create.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_codex_uses_raw_stdout_as_text(monkeypatch):
+    spec = AgentSpec(kind="codex", argv=("/usr/bin/codex",))
+    create = AsyncMock(return_value=_fake_process("codex 写的正文\n"))
+    monkeypatch.setattr("meta_writing.llm.asyncio.create_subprocess_exec", create)
+
+    client = AgentClient(agent=spec)
+    response = await client.complete("SYS", [{"role": "user", "content": "U"}])
+
+    assert response.text == "codex 写的正文"
+    assert client.usage.input_tokens == 0

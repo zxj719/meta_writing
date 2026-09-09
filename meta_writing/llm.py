@@ -57,27 +57,23 @@ RETRY_BACKOFF_BASE = 2.0  # seconds
 
 @dataclass
 class TokenUsage:
-    """Track token usage across the pipeline."""
+    """Track token usage and real cost across the pipeline."""
     input_tokens: int = 0
     output_tokens: int = 0
     cache_creation_tokens: int = 0
     cache_read_tokens: int = 0
+    cost_usd: float = 0.0
 
-    def add(self, usage: dict[str, int]) -> None:
+    def add(self, usage: dict[str, int], cost_usd: float = 0.0) -> None:
         self.input_tokens += usage.get("input_tokens", 0)
         self.output_tokens += usage.get("output_tokens", 0)
         self.cache_creation_tokens += usage.get("cache_creation_input_tokens", 0)
         self.cache_read_tokens += usage.get("cache_read_input_tokens", 0)
+        self.cost_usd += cost_usd
 
     @property
     def total_tokens(self) -> int:
         return self.input_tokens + self.output_tokens
-
-    def estimated_cost_usd(self, model: str) -> float:
-        """Rough cost estimate based on MiniMax pricing."""
-        input_price = 1.0 / 1_000_000
-        output_price = 5.0 / 1_000_000
-        return self.input_tokens * input_price + self.output_tokens * output_price
 
 
 @dataclass
@@ -474,3 +470,121 @@ def build_agent_command(
         argv = list(spec.argv)
 
     return argv, f"{system_prompt}\n\n---\n\n{prompt}"
+
+
+DEFAULT_AGENT_TIMEOUT_SECONDS = 900.0
+
+
+def _resolve_timeout(env: Mapping[str, str] | None = None) -> float:
+    env = os.environ if env is None else env
+    raw = (env.get("META_WRITING_AGENT_TIMEOUT") or "").strip()
+    if not raw:
+        return DEFAULT_AGENT_TIMEOUT_SECONDS
+    try:
+        value = float(raw)
+    except ValueError:
+        return DEFAULT_AGENT_TIMEOUT_SECONDS
+    return value if value > 0 else DEFAULT_AGENT_TIMEOUT_SECONDS
+
+
+class AgentClient:
+    """通过当前环境的智能体 CLI 完成生成与审稿。
+
+    complete() 的签名与旧的供应商 client 保持一致，因此 agent 层无需改动。
+    model 与 max_tokens 被忽略——模型由当前智能体会话决定，这正是
+    「使用当前智能体」的含义。temperature 被翻译成提示词指令。
+    """
+
+    def __init__(self, agent: AgentSpec | None = None, timeout: float | None = None) -> None:
+        self.agent = agent or detect_agent()
+        self.timeout = timeout if timeout is not None else _resolve_timeout()
+        self.usage = TokenUsage()
+
+    async def complete(
+        self,
+        system: str,
+        messages: list[dict[str, Any]],
+        model: str | None = None,       # ignored: decided by the current agent
+        max_tokens: int | None = None,  # ignored: decided by the current agent
+        temperature: float = 0.7,
+    ) -> LLMResponse:
+        prompt = "\n\n".join(
+            str(message.get("content", "")) for message in messages
+        ).strip()
+        argv, stdin_text = build_agent_command(self.agent, system, prompt, temperature)
+
+        last_error = ""
+        for attempt in range(MAX_RETRIES):
+            try:
+                return await self._invoke_once(argv, stdin_text)
+            except AgentInvocationError as exc:
+                last_error = str(exc)
+
+            if attempt < MAX_RETRIES - 1:
+                await asyncio.sleep(RETRY_BACKOFF_BASE ** (attempt + 1))
+
+        raise AgentInvocationError(f"智能体调用连续失败 {MAX_RETRIES} 次：{last_error}")
+
+    async def _invoke_once(self, argv: list[str], stdin_text: str) -> LLMResponse:
+        process = await asyncio.create_subprocess_exec(
+            *argv,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                process.communicate(input=stdin_text.encode("utf-8")),
+                timeout=self.timeout,
+            )
+        except asyncio.TimeoutError as exc:
+            process.kill()
+            raise AgentInvocationError(f"智能体调用超时（{self.timeout}s）") from exc
+
+        stdout = stdout_bytes.decode("utf-8", errors="replace")
+        stderr = stderr_bytes.decode("utf-8", errors="replace").strip()
+
+        if process.returncode != 0:
+            raise AgentInvocationError(
+                f"智能体退出码 {process.returncode}：{stderr[:500] or '(无 stderr)'}"
+            )
+
+        if self.agent.kind == "claude":
+            return self._parse_claude_output(stdout)
+        return self._parse_plain_output(stdout, stderr)
+
+    def _parse_claude_output(self, stdout: str) -> LLMResponse:
+        try:
+            payload = json.loads(stdout)
+        except json.JSONDecodeError as exc:
+            raise AgentInvocationError(f"智能体输出不是合法 JSON：{stdout[:300]}") from exc
+
+        if payload.get("is_error"):
+            raise AgentInvocationError(f"智能体报错：{str(payload.get('result', ''))[:500]}")
+
+        text = str(payload.get("result") or "").strip()
+        if not text:
+            raise AgentInvocationError("智能体返回空结果")
+
+        usage = payload.get("usage") or {}
+        cost = float(payload.get("total_cost_usd") or 0.0)
+        self.usage.add(usage, cost_usd=cost)
+
+        model_usage = payload.get("modelUsage") or {}
+        model_name = next(iter(model_usage), "")
+
+        return LLMResponse(
+            text=text,
+            usage={
+                "input_tokens": usage.get("input_tokens", 0),
+                "output_tokens": usage.get("output_tokens", 0),
+            },
+            model=model_name,
+            stop_reason=str(payload.get("stop_reason") or ""),
+        )
+
+    def _parse_plain_output(self, stdout: str, stderr: str) -> LLMResponse:
+        text = stdout.strip()
+        if not text:
+            raise AgentInvocationError(f"智能体返回空结果：{stderr[:300]}")
+        return LLMResponse(text=text, usage={}, model=self.agent.kind, stop_reason="")
