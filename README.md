@@ -1,246 +1,184 @@
-# Meta Writing
+# meta_writing
 
-`meta_writing` is a local-first Chinese web novel generation workspace. It combines a Story Bible, project isolation, multi-agent review, style linting, and optional autonomous generation so one novel does not accidentally inherit another novel's state.
+**本地优先的中文长篇小说生成引擎。**
 
-The current priority is practical long-form writing: keep plot momentum, update story state after every chapter, and make future chapter generation easier to continue without context leakage.
+一个 Python 包、一个 CLI、一棵磁盘上的文件树——没有服务端、没有数据库、没有部署环节。全部状态都是 git 可追踪的纯文本（YAML + Markdown）。
 
-## What This Repository Contains
+它要解决的不是「写出一章能读的文字」，而是长篇写作真正的三个难点：
 
-- `meta_writing/`: Python package for the CLI, orchestration, agents, Story Bible loading, style linting, and workspace management.
-- `auto_runner.py`: autonomous chapter loop for projects that explicitly opt into `automatic` workflow mode.
-- `novels/`: isolated novel projects. Each project owns its own chapters, Story Bible, guidance, learned rules, and workflow metadata.
-- `docs/`: maintenance notes for multi-project workflow, new-novel startup, and the editorial scorecard.
-- `tests/`: pytest coverage for workspace isolation, orchestrator behavior, writer routing, style linting, and editorial scoring.
+| 难点 | 应对 |
+|------|------|
+| **状态漂移** —— 第 30 章与第 12 章矛盾 | Story Bible：结构化、可校验、每章更新的显式状态层 |
+| **上下文溢出** —— 故事状态迟早超出窗口 | 三级降级压缩，把状态压进固定 token 预算 |
+| **质量塌陷** —— 越写越像模型 | 确定性 linter + 三位 LLM 审稿 + 五维评分卡双重硬门槛 |
 
-## Core Concepts
+---
 
-### Project Isolation
+## 快速开始
 
-Every novel should live under `novels/<project-name>/`.
-
-Important project files:
-
-- `.meta-writing-project.json`: project name and workflow mode.
-- `creator_guidance.md`: long-lived author instructions for this novel.
-- `learned_rules.md`: accumulated style and continuity rules.
-- `chapters/`: generated chapter markdown files.
-- `story_data/`: Story Bible YAML files, including characters, chapter summaries, timeline, pacing, and foreshadowing.
-- `auto_runner_log.md`: automatic-mode execution notes when relevant.
-- `editorial_reviews/`: structured editorial review traces when the scorecard loop is used.
-
-The active project can also be recorded in `.meta-writing/workspace.json`.
-
-### Manual Mode vs Automatic Mode
-
-There are two supported workflow modes:
-
-- `manual`: chapter writing is directed by the human/Codex session. After each chapter, update story state manually and run verification. This is the recommended mode for quality-sensitive novels.
-- `automatic`: `auto_runner.py` can plan, write, review, revise, update state, and optionally push. Use this only for projects that are explicitly configured for automatic workflow.
-
-`rescue-male-lead` is currently a manual-mode project. Do not use `auto_runner.py` to overwrite its chapter text unless the workflow mode is intentionally changed.
-
-### Editorial Review
-
-The quality gate uses a five-part scorecard:
-
-- Plot tension and pacing, weight 30%.
-- Character shaping and interaction, weight 25%.
-- Information design and hidden-line handling, weight 20%.
-- Language and descriptive texture, weight 15%.
-- Instruction fit and completion, weight 10%.
-
-The default pass threshold is `8.0`. The scoring system is documented in `docs/editorial-scorecard-maintenance.md`.
-
-### Style Linting
-
-`meta_writing/style_linter.py` catches common AI-flavored prose issues, including repeated scaffolds, hard sentence fragmentation, overused judgement patterns, and project-specific banned openings.
-
-Current high-priority style constraints include:
-
-- Avoid repeated `那……很……，但……` and `那……不……，但……` sentence scaffolds.
-- Avoid opening a chapter with `……一……，就……`.
-- Reduce mechanical `不是……是……` explanation pairs unless they are natural dialogue.
-- Prefer action, expression, environment, and object details over authorial explanation.
-
-## Setup
-
-Use Python 3.12 or newer.
+需要 Python 3.12+ 与至少一个 MiniMax API key。
 
 ```powershell
-cd C:\Users\xingj\Documents\agent\novel_generator\meta_writing
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
-```
 
-If you use vector retrieval features, install any model/runtime dependencies required by `chromadb` and `sentence-transformers`.
-
-## LLM Configuration
-
-Do not commit real API keys. Put keys in your shell environment or a local ignored `.env` file.
-
-Supported writer providers:
-
-- `minimax`
-- `deepseek`
-
-Common environment variables:
-
-```powershell
 $env:MINIMAX_API_KEY = "..."
-$env:MINIMAX_BASE_URL = "https://api.minimaxi.com/anthropic"
-$env:DEEPSEEK_API_KEY = "..."
-$env:ANTHROPIC_API_KEY = "..."
+python -m pytest -q                    # 全部 LLM 调用已 mock，不消耗额度
 ```
 
-Compatibility aliases supported by the MiniMax client:
+开一本新书并写出第一章：
 
 ```powershell
-$env:ANTHROPIC_AUTH_TOKEN = "..."
-$env:ANTHROPIC_BASE_URL = "https://api.minimaxi.com/anthropic"
+meta-writing --workspace-dir . project create my-novel --mode manual --activate
+meta-writing --workspace-dir . --project my-novel init
+# 填写 novels/my-novel/creator_guidance.md
+meta-writing --workspace-dir . --project my-novel add-character
+meta-writing --workspace-dir . --project my-novel generate --guidance "第一章：建立主角处境与核心矛盾。"
 ```
 
-Use environment variables only; never paste a live token into tracked files.
+完整步骤与常见坑：[`docs/guides/getting-started.md`](docs/guides/getting-started.md)
 
-## Common Commands
+---
 
-Show known projects:
+## 系统构成
 
-```powershell
-python -m meta_writing.cli --workspace-dir . project list
+```
+编排层    orchestrator.py（手动）  /  auto_runner.py（自动）
+智能体层  Planner Writer ┃ Continuity Style Theme
+质量层    style_linter · editorial_scorecard · negative_examples · prompt_profiles
+状态层    story_bible/（schema · loader · compressor） · workspace · vector_store
 ```
 
-Set the active project:
+一章的完整生命周期：
 
-```powershell
-python -m meta_writing.cli --workspace-dir . project use rescue-male-lead
+```
+读 Story Bible → 压缩上下文 → 规划 2-3 条分支 → 选枝 → 写作（不足则扩写）
+  → [ linter + 三位审稿 → 五维评分 → 未过则修订 ] × ≤5 轮
+  → 审稿留痕 → 人工验收 → 落盘 + 状态回写 + git commit
 ```
 
-Check the active project:
+设计原理与取舍：[`docs/architecture/overview.md`](docs/architecture/overview.md)
 
-```powershell
-python -m meta_writing.cli --workspace-dir . project current
+---
+
+## 仓库结构
+
+| 路径 | 内容 |
+|------|------|
+| `meta_writing/` | Python 包：CLI、编排、agent、Story Bible、文风检查、工作区管理 |
+| `auto_runner.py` | 自动生成循环（仅限 `automatic` 模式项目） |
+| `scripts/editorial_pass.py` | 对已有章节单独跑审稿 |
+| `novels/<project>/` | 隔离的小说项目：章节、Story Bible、创作指导、审稿记录 |
+| `docs/` | 项目文档，见下 |
+| `tests/` | pytest 套件，LLM 调用全部 mock |
+
+每个项目自持全部状态：
+
+```
+novels/<project>/
+├── .meta-writing-project.json    项目名 + workflow_mode
+├── creator_guidance.md           长期创作指导（人写，影响全部 agent）
+├── learned_rules.md              累积的风格与连续性规则
+├── chapters/NNN.md               正文
+├── story_data/                   Story Bible（YAML）
+└── editorial_reviews/NNN.{md,json}   逐章审稿留痕
 ```
 
-Show Story Bible status:
+---
 
-```powershell
-python -m meta_writing.cli --workspace-dir . --project rescue-male-lead status
-```
+## 两种工作流
 
-Generate through the manual CLI pipeline:
+每个项目在 `.meta-writing-project.json` 里声明 `workflow_mode`，两条链路**互斥**——防止自动循环覆写人工精修过的章节。
 
-```powershell
-python -m meta_writing.cli --workspace-dir . --project rescue-male-lead generate --guidance "继续下一章，写完后更新角色状态、伏笔、时间线和节奏。"
-```
+| | `manual` | `automatic` |
+|---|---|---|
+| 入口 | `meta-writing generate` | `python auto_runner.py --from N --to M` |
+| 分支选择 / 验收 / 状态回写 | 人 | LLM |
+| 适用 | 质量敏感项目（推荐） | 批量产出、工具实验 |
 
-Run automatic mode for an automatic project:
+对比详情：[`docs/architecture/pipelines.md`](docs/architecture/pipelines.md)
 
-```powershell
-python auto_runner.py --project <project-name> --from 1 --to 10
-```
+> `auto_runner.py` 及其测试在当前工作区中处于**已删除但未提交**状态。本文档按仓库 HEAD 描述。
 
-Dry-run automatic planning without writing:
+---
 
-```powershell
-python auto_runner.py --project <project-name> --to 10 --dry-run
-```
+## 质量体系
 
-## Starting a New Novel
+**第一层**：[`style_linter.py`](meta_writing/style_linter.py) —— 13 条行级规则 + 9 条全局计数规则 + 2 条结构规则，纯正则，零成本。抓可枚举的 AI 腔：`那……很……，但……` 脚手架、`不是……是……` 反向下定义、连续单字成段、物体「记得」的拟人化。命中 ERROR 直接阻塞。
 
-Create a new isolated project:
+**第二层**：三位审稿人各出一张五维评分卡，加权聚合：
 
-```powershell
-python -m meta_writing.cli --workspace-dir . project create my-new-novel --mode manual --activate
-```
+| 维度 | 权重 |
+|------|------|
+| 剧情张力与节奏 | 30% |
+| 人物塑造与互动 | 25% |
+| 信息量与暗线设计 | 20% |
+| 语言与描写质感 | 15% |
+| 指令满足与完成度 | 10% |
 
-Then fill in:
+门槛是双重的：综合分 **≥ 8.0** 且**无任何单维 < 7.0**。只有综合门槛的话，剧情 9.5 分能把人物 5 分背过线——而「人物塌了但剧情爽」正是长篇最致命的失败模式。
 
-- `novels/my-new-novel/creator_guidance.md`
-- `novels/my-new-novel/story_data/story_core.yaml`
-- initial character cards under `novels/my-new-novel/story_data/characters/`
+修订循环最多 5 轮，且在连续 2 轮提升 < 0.2 分时提前判定停滞退出——修不动就该交回给人，而不是继续烧 token。
 
-Recommended startup checklist:
+调参与维护：[`docs/operations/editorial-scorecard-maintenance.md`](docs/operations/editorial-scorecard-maintenance.md)
 
-- Define title, genre, platform style, target chapter length, and core reader satisfaction.
-- Write the first-stage outline and the next 5-10 chapter direction.
-- Define protagonist, love interest or major counterpart, first antagonist, and at least one reusable side character.
-- Add hard style rules early, especially banned sentence patterns and dialogue texture preferences.
-- Decide whether the project is `manual` or `automatic`; do not mix modes casually.
+---
 
-For a longer walkthrough, see `docs/new-novel-quickstart.md`.
+## 风格档案
 
-## Manual Chapter Workflow
+同一套引擎按项目切换审美口径，由 `creator_guidance.md` 的关键词自动识别：
 
-For quality-sensitive novels, use this loop:
+| 档案 | 触发关键词 |
+|------|-----------|
+| `literary_microfeel` 克制微感文学 | 克制美学、微感、留白、纯感官、不解释 |
+| `tomato_romance` 番茄快节奏女频 | 番茄、高梗密度、快节奏、爽点、拉扯、女频 |
+| `generic` 通用 | （兜底） |
 
-1. Read the last chapter, `creator_guidance.md`, `learned_rules.md`, and relevant Story Bible files.
-2. Write the next chapter in `chapters/<number>.md`.
-3. Run style checks and remove mechanical patterns before accepting the chapter.
-4. Update `story_data/chapter_summaries/<number>.yaml`.
-5. Update character cards for every changed character.
-6. Update timeline, pacing, and foreshadowing.
-7. Re-load the Story Bible to verify schema consistency.
-8. Record any new reusable writing rule in `learned_rules.md` or `creator_guidance.md`.
+档案不改代码路径，只向五处 system prompt 追加约束，并决定第三编辑用哪套标准。这让「快节奏项目被文学化标准误伤」这类问题在档案层解决，不必动引擎。
 
-This is the current preferred flow for `rescue-male-lead`.
+---
 
-## Verification
+## 模型供应商
 
-Run the full test suite:
+| 供应商 | 用途 | 环境变量 |
+|--------|------|---------|
+| MiniMax | 手动链路全部角色；自动链路的 StyleAgent | `MINIMAX_API_KEY` |
+| DeepSeek | 写手可选；自动链路的结构化抽取 | `DEEPSEEK_API_KEY` |
+| Anthropic | 自动链路的编辑角色（缺失则降级） | `ANTHROPIC_API_KEY` |
 
-```powershell
-python -m pytest -q
-```
+**密钥只放环境变量或被忽略的 `.env`，绝不写进被跟踪的文件。**
 
-Run the style linter tests only:
+> 手动链路只需 `MINIMAX_API_KEY` 即可完整运行。自动链路缺少 Anthropic/DeepSeek 凭据时会**静默降级**（仅打 WARNING），审稿严格度随之改变——运行时请检查启动日志。
 
-```powershell
-python -m pytest tests\test_style_linter.py -q
-```
+路由细节与配置陷阱：[`docs/architecture/model-routing.md`](docs/architecture/model-routing.md)
 
-Load a project's Story Bible from PowerShell:
+---
 
-```powershell
-@'
-from pathlib import Path
-from meta_writing.story_bible.loader import StoryBibleLoader
-root = Path("novels/rescue-male-lead/story_data")
-bible = StoryBibleLoader(root).load()
-print("current_chapter=", bible.core.current_chapter)
-print("characters=", len(bible.characters))
-print("chapter_summaries=", len(bible.chapter_summaries))
-'@ | python -X utf8 -
-```
+## 文档
 
-## Git Hygiene
+完整索引：[`docs/README.md`](docs/README.md)
 
-Before pushing:
+| 层 | 内容 |
+|----|------|
+| [`docs/architecture/`](docs/architecture/) | 总体设计、状态层、智能体层、编排层、模型路由 |
+| [`docs/guides/`](docs/guides/) | 快速开始、开新书、手动写作循环、多项目工作区 |
+| [`docs/reference/`](docs/reference/) | CLI、Story Bible 字段、配置项、文风规则 |
+| [`docs/operations/`](docs/operations/) | 评分体系维护、测试与发布卫生 |
+| [`docs/decisions/`](docs/decisions/) | 历史设计决策归档 |
+
+---
+
+## 提交约定
+
+**章节与其 Story Bible 更新必须在同一个提交里。** 只有正文没有状态更新的提交视为不完整。
 
 ```powershell
 git status --short
 python -m pytest -q
-git diff --check
+rg -n "sk-|API_KEY\s*=|AUTH_TOKEN\s*=|BEGIN .*PRIVATE KEY" .
 ```
 
-Also scan for accidental secrets:
+两条链路都会尝试自动 `git commit`，但**失败是静默的**——生成后请 `git log -1 --stat` 确认。
 
-```powershell
-rg -n "sk-|API_KEY\\s*=|AUTH_TOKEN\\s*=|BEGIN .*PRIVATE KEY" .
-```
-
-Commit and push:
-
-```powershell
-git add .
-git commit -m "docs: add project README"
-git push origin master
-```
-
-If generated chapters are part of the intended release, commit the chapter files and their Story Bible updates together. A chapter without its state update is considered incomplete.
-
-## Current Notes
-
-- `rescue-male-lead` has moved into a manual, quality-controlled chapter workflow.
-- `auto_runner.py` remains useful for automatic projects and tooling experiments, but it should not be allowed to cross-contaminate manual projects.
-- The README documents workflow and safe operation. Novel-specific creative direction belongs in each project's `creator_guidance.md` and `learned_rules.md`.
+详见 [`docs/operations/testing-and-verification.md`](docs/operations/testing-and-verification.md)

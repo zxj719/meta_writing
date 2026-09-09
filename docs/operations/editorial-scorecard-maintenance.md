@@ -54,41 +54,41 @@
 
 ### 3.1 核心文件
 
-- [editorial_scorecard.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/editorial_scorecard.py)
+- [editorial_scorecard.py](../../meta_writing/editorial_scorecard.py)
   评分常量、维度定义、聚合逻辑、停滞判断、审稿记录结构
 
-- [orchestrator.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/orchestrator.py)
+- [orchestrator.py](../../meta_writing/orchestrator.py)
   手动模式章节生成与审稿修订闭环
 
-- [auto_runner.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/auto_runner.py)
+- [auto_runner.py](../../auto_runner.py)
   自动模式章节生成与自修订闭环
 
-- [continuity.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/agents/continuity.py)
+- [continuity.py](../../meta_writing/agents/continuity.py)
   连续性审稿 agent，负责人物状态、信息流、时间线、世界规则等
 
-- [style.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/agents/style.py)
+- [style.py](../../meta_writing/agents/style.py)
   文风审稿 agent，负责 AI 味、断句、外貌/神态/环境缺口、节奏单一等
 
-- [theme.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/agents/theme.py)
+- [theme.py](../../meta_writing/agents/theme.py)
   第三编辑 agent
   在番茄/通用项目中更接近“剧情编辑”
   在文学微感项目中更接近“主题编辑”
 
-- [prompt_profiles.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/prompt_profiles.py)
+- [prompt_profiles.py](../../meta_writing/prompt_profiles.py)
   项目类型与三位编辑的风格约束切换
 
-- [style_linter.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/style_linter.py)
+- [style_linter.py](../../meta_writing/style_linter.py)
   非 LLM 的规则检查层，负责抓明显的语言模式问题
 
-- [workspace.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/workspace.py)
+- [workspace.py](../../meta_writing/workspace.py)
   定义项目运行时文件路径，包括 `editorial_reviews/`
 
 ### 3.2 测试文件
 
-- [test_editorial_scorecard.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/tests/test_editorial_scorecard.py)
-- [test_orchestrator.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/tests/test_orchestrator.py)
-- [test_auto_runner.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/tests/test_auto_runner.py)
-- [test_workspace.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/tests/test_workspace.py)
+- [test_editorial_scorecard.py](../../tests/test_editorial_scorecard.py)
+- [test_orchestrator.py](../../tests/test_orchestrator.py)
+- [test_auto_runner.py](../../tests/test_auto_runner.py)
+- [test_workspace.py](../../tests/test_workspace.py)
 
 如果你改评分逻辑，优先看这几组测试。
 
@@ -177,7 +177,7 @@
 
 ## 6. 分数是怎么聚合的
 
-聚合逻辑在 [editorial_scorecard.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/editorial_scorecard.py)。
+聚合逻辑在 [editorial_scorecard.py](../../meta_writing/editorial_scorecard.py)。
 
 ### 6.1 聚合步骤
 
@@ -258,7 +258,7 @@
 
 入口：
 
-- [orchestrator.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/meta_writing/orchestrator.py)
+- [orchestrator.py](../../meta_writing/orchestrator.py)
 
 流程：
 
@@ -289,7 +289,7 @@
 
 入口：
 
-- [auto_runner.py](/c:/Users/xingj/Documents/agent/novel_generator/meta_writing/auto_runner.py)
+- [auto_runner.py](../../auto_runner.py)
 
 流程和手动链路类似，但差别在最后：
 
