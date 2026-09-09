@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from meta_writing.agents.style import StyleAgent
 from meta_writing.editorial_scorecard import EditorialDimension
-from meta_writing.llm import LLMClient, LLMResponse
+from meta_writing.llm import LLMResponse
+from tests.helpers import stub_agent_client
 
 
 def test_style_agent_parses_scorecard() -> None:
-    agent = StyleAgent(LLMClient(api_key="test"))
+    agent = StyleAgent(stub_agent_client())
     response = LLMResponse(
         text="""
 {

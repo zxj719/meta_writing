@@ -251,10 +251,6 @@ class StoryCore(BaseModel):
         ge=500,
         description="Minimum chapter length before auto-expansion",
     )
-    writer_provider: str = Field(
-        default="minimax",
-        description="Preferred writer provider for this novel (deepseek or minimax)",
-    )
 
 
 # --- Full Story Bible (in-memory aggregate) ---

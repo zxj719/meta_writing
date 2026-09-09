@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 
 from ..editorial_scorecard import EditorialScorecard, EDITORIAL_SCORECARD_PROMPT
-from ..llm import LLMClient, LLMResponse, MODEL_SONNET
+from ..llm import AgentClient, LLMResponse
 from ..prompt_profiles import GENERIC_PROFILE, PromptProfile
 
 logger = logging.getLogger(__name__)
@@ -155,7 +155,7 @@ class ThemeAgentResult:
 class ThemeAgent:
     """Cross-chapter thematic or story-editor reviewer."""
 
-    def __init__(self, llm: LLMClient, model: str = MODEL_SONNET) -> None:
+    def __init__(self, llm: AgentClient, model: str | None = None) -> None:
         self.llm = llm
         self.model = model
 

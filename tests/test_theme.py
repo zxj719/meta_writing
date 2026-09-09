@@ -6,7 +6,8 @@ import pytest
 
 from meta_writing.agents.theme import ThemeAgent, build_theme_system_prompt
 from meta_writing.editorial_scorecard import EditorialDimension
-from meta_writing.llm import LLMClient, LLMResponse
+from meta_writing.llm import LLMResponse
+from tests.helpers import stub_agent_client
 from meta_writing.prompt_profiles import detect_prompt_profile
 
 
@@ -29,12 +30,12 @@ THEME_RESPONSE = """
 
 
 def _make_agent(response_text: str) -> ThemeAgent:
-    client = LLMClient(api_key="test")
+    client = stub_agent_client()
     client.complete = AsyncMock(
         return_value=LLMResponse(
             text=response_text,
             usage={"input_tokens": 1200, "output_tokens": 300},
-            model="claude-opus-4-6",
+            model="test-model",
             stop_reason="end_turn",
         )
     )

@@ -18,7 +18,6 @@ from rich.prompt import Prompt, IntPrompt
 from rich.table import Table
 from rich.markdown import Markdown
 
-from .llm import MODEL_SONNET, SUPPORTED_WRITER_PROVIDERS
 from .orchestrator import Orchestrator
 from .story_bible.loader import StoryBibleLoader
 from .story_bible.schema import (
@@ -196,11 +195,6 @@ def init(ctx: click.Context) -> None:
     satisfaction = Prompt.ask("核心爽点类型", default="")
     total_chapters = IntPrompt.ask("计划总章节数", default=100)
 
-    writer_provider = Prompt.ask(
-        "Writer provider",
-        choices=list(SUPPORTED_WRITER_PROVIDERS),
-        default="minimax",
-    )
     chapter_target_chars = IntPrompt.ask("Target chapter chars", default=2000)
     default_min_chars = max(800, int(chapter_target_chars * 0.8))
     chapter_min_chars = IntPrompt.ask("Minimum chars before expansion", default=default_min_chars)
@@ -228,7 +222,6 @@ def init(ctx: click.Context) -> None:
         total_planned_chapters=total_chapters,
         chapter_target_chars=chapter_target_chars,
         chapter_min_chars=chapter_min_chars,
-        writer_provider=writer_provider,
     )
     loader.save_core(core)
     console.print(Panel("✅ 故事核心已保存", style="green"))
@@ -300,7 +293,7 @@ def generate(ctx: click.Context, guidance: str) -> None:
                 style="bold green",
             ))
             console.print(f"Token用量: {orch.llm.usage.total_tokens:,} tokens")
-            console.print(f"预估成本: ${orch.llm.usage.estimated_cost_usd(MODEL_SONNET):.2f}")
+            console.print(f"实际成本: ${orch.llm.usage.cost_usd:.4f}")
         except Exception as e:
             console.print(Panel(f"❌ 错误: {e}", style="bold red"))
             raise

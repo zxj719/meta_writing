@@ -171,7 +171,7 @@ _GLOBAL_RULES: list[tuple[str, re.Pattern[str], int, Severity, str, str]] = [
         re.compile(r"是那种.{0,30}的那种"),
         5,
         Severity.WARNING,
-        '"是那种X的那种Y"嵌套句式出现超过5次——MiniMax最高频散文口头禅，造成节奏麻木',
+        '"是那种X的那种Y"嵌套句式出现超过5次——高频散文口头禅，造成节奏麻木',
         '删除"是那种"/"的那种"框架，改为直接描写：把"那种味道"改写成具体的气味动词',
     ),
     (

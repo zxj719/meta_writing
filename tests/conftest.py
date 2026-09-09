@@ -48,7 +48,6 @@ def sample_core() -> StoryCore:
         current_chapter=3,
         chapter_target_chars=2000,
         chapter_min_chars=1600,
-        writer_provider="minimax",
     )
 
 

@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import asyncio
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -21,7 +20,7 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from meta_writing.llm import LLMClient
+from meta_writing.llm import AgentClient
 from meta_writing.style_linter import StyleLinter
 from meta_writing.agents.style import StyleAgent
 from meta_writing.agents.theme import ThemeAgent
@@ -88,11 +87,7 @@ async def run_editorial_pass(project_dir: Path) -> None:
     summaries_dir = project_dir / "story_data" / "chapter_summaries"
     output_file = ProjectRuntimePaths.for_project(project_dir).editorial_report
 
-    api_key = os.environ.get("MINIMAX_API_KEY", "") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
-    if not api_key:
-        print("WARNING: MiniMax auth token not set. LLM calls will fail.", file=sys.stderr)
-
-    llm = LLMClient(api_key=api_key)
+    llm = AgentClient()
     linter = StyleLinter()
     style_agent = StyleAgent(llm=llm)
     theme_agent = ThemeAgent(llm=llm)
@@ -249,7 +244,7 @@ async def run_editorial_pass(project_dir: Path) -> None:
     report_sections.append("## Token 使用统计\n")
     report_sections.append(f"- 输入 tokens: {usage.input_tokens:,}\n")
     report_sections.append(f"- 输出 tokens: {usage.output_tokens:,}\n")
-    report_sections.append(f"- 估算费用: ${usage.estimated_cost_usd('MiniMax-M2.7'):.4f}\n")
+    report_sections.append(f"- 实际费用: ${usage.cost_usd:.4f}\n")
 
     # Write report
     report_text = "\n".join(report_sections)

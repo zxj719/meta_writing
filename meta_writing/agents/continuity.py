@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from ..editorial_scorecard import EditorialScorecard, EDITORIAL_SCORECARD_PROMPT
-from ..llm import LLMClient, LLMResponse, MODEL_SONNET
+from ..llm import AgentClient, LLMResponse
 from ..prompt_profiles import GENERIC_PROFILE, PromptProfile
 from ..story_bible.compressor import CompressedContext
 
@@ -151,7 +151,7 @@ class ContinuityResult:
 class ContinuityAgent:
     """Validates chapter consistency against the Story Bible."""
 
-    def __init__(self, llm: LLMClient, model: str = MODEL_SONNET) -> None:
+    def __init__(self, llm: AgentClient, model: str | None = None) -> None:
         self.llm = llm
         self.model = model
 

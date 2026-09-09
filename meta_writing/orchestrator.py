@@ -26,7 +26,7 @@ from .editorial_scorecard import (
     aggregate_editorial_scorecards,
     editorial_progress_stalled,
 )
-from .llm import LLMClient, MODEL_OPUS, MODEL_SONNET, build_writer_backend
+from .llm import AgentClient
 from .prompt_profiles import detect_prompt_profile
 from .story_bible.compressor import StoryBibleCompressor
 from .story_bible.loader import StoryBibleLoader
@@ -75,15 +75,7 @@ StateChangeConfirmer = Callable[[list[dict[str, Any]]], Awaitable[bool]]
 class Orchestrator:
     """Manages the full manual chapter generation pipeline."""
 
-    def __init__(
-        self,
-        project_dir: str | Path,
-        api_key: str | None = None,
-        planner_model: str = MODEL_OPUS,
-        writer_model: str | None = None,
-        continuity_model: str = MODEL_SONNET,
-        writer_provider: str | None = None,
-    ) -> None:
+    def __init__(self, project_dir: str | Path, llm: AgentClient | None = None) -> None:
         self.project_dir = Path(project_dir)
         self.story_data_dir = self.project_dir / "story_data"
         self.chapters_dir = self.project_dir / "chapters"
@@ -91,25 +83,15 @@ class Orchestrator:
         self.editorial_reviews_dir = self.project_dir / "editorial_reviews"
         self.chapters_dir.mkdir(parents=True, exist_ok=True)
 
-        self.llm = LLMClient(api_key=api_key)
+        self.llm = llm or AgentClient()
         self.loader = StoryBibleLoader(self.story_data_dir)
         self.compressor = StoryBibleCompressor()
-        core = self.loader.load_core()
 
-        resolved_writer_provider = writer_provider or (core.writer_provider if core else "minimax")
-        writer_llm, auto_writer_model = build_writer_backend(
-            resolved_writer_provider,
-            minimax_api_key=api_key,
-        )
-        if resolved_writer_provider == "minimax":
-            writer_llm = self.llm
-        resolved_writer_model = writer_model or auto_writer_model
-
-        self.planner = PlannerAgent(self.llm, model=planner_model)
-        self.writer = WriterAgent(writer_llm, model=resolved_writer_model)
-        self.continuity = ContinuityAgent(self.llm, model=continuity_model)
-        self.style_agent = StyleAgent(self.llm, model=continuity_model)
-        self.theme_agent = ThemeAgent(self.llm, model=continuity_model)
+        self.planner = PlannerAgent(self.llm)
+        self.writer = WriterAgent(self.llm)
+        self.continuity = ContinuityAgent(self.llm)
+        self.style_agent = StyleAgent(self.llm)
+        self.theme_agent = ThemeAgent(self.llm)
         self.style_linter = StyleLinter()
 
         self.state = PipelineState()

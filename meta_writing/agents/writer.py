@@ -10,7 +10,7 @@ import logging
 import re
 from dataclasses import dataclass
 
-from ..llm import LLMClient, LLMResponse, MODEL_SONNET
+from ..llm import AgentClient, LLMResponse
 from ..negative_examples import format_examples_for_prompt
 from ..prompt_profiles import GENERIC_PROFILE, PromptProfile
 from ..story_bible.compressor import CompressedContext
@@ -159,7 +159,7 @@ class WriterResult:
 class WriterAgent:
     """Generates full chapter prose from outline + Story Bible context."""
 
-    def __init__(self, llm: LLMClient, model: str = MODEL_SONNET) -> None:
+    def __init__(self, llm: AgentClient, model: str | None = None) -> None:
         self.llm = llm
         self.model = model
 

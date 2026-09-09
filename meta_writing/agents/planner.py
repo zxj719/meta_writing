@@ -12,7 +12,7 @@ import logging
 import re
 from dataclasses import dataclass
 
-from ..llm import LLMClient, LLMResponse, MODEL_OPUS
+from ..llm import AgentClient, LLMResponse
 from ..prompt_profiles import GENERIC_PROFILE, PromptProfile
 from ..story_bible.compressor import CompressedContext
 
@@ -91,7 +91,7 @@ class PlannerResult:
 class PlannerAgent:
     """Generates plot branch options for the next chapter."""
 
-    def __init__(self, llm: LLMClient, model: str = MODEL_OPUS) -> None:
+    def __init__(self, llm: AgentClient, model: str | None = None) -> None:
         self.llm = llm
         self.model = model
 

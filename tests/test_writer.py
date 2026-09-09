@@ -12,7 +12,8 @@ from meta_writing.agents.writer import (
     build_revision_system_prompt,
     build_writer_system_prompt,
 )
-from meta_writing.llm import LLMClient, LLMResponse
+from meta_writing.llm import LLMResponse
+from tests.helpers import stub_agent_client
 from meta_writing.negative_examples import NEGATIVE_EXAMPLES, format_examples_for_prompt
 from meta_writing.prompt_profiles import detect_prompt_profile
 from meta_writing.story_bible.compressor import CompressedContext
@@ -37,12 +38,12 @@ MOCK_REVISED_TEXT = MOCK_CHAPTER_TEXT + "\n（修改版：补上了伤口细节�
 
 @pytest.fixture
 def mock_llm():
-    client = LLMClient(api_key="test")
+    client = stub_agent_client()
     client.complete = AsyncMock(
         return_value=LLMResponse(
             text=MOCK_CHAPTER_TEXT,
             usage={"input_tokens": 2000, "output_tokens": 3000},
-            model="claude-sonnet-4-6",
+            model="test-model",
             stop_reason="end_turn",
         )
     )
@@ -74,12 +75,12 @@ class TestWriterAgent:
 
     @pytest.mark.asyncio
     async def test_revision(self, bible_context):
-        client = LLMClient(api_key="test")
+        client = stub_agent_client()
         client.complete = AsyncMock(
             return_value=LLMResponse(
                 text=MOCK_REVISED_TEXT,
                 usage={"input_tokens": 3000, "output_tokens": 3500},
-                model="claude-sonnet-4-6",
+                model="test-model",
                 stop_reason="end_turn",
             )
         )
@@ -209,7 +210,7 @@ class TestAutoExpansion:
     async def test_no_expansion_when_above_minimum(self, bible_context):
         long_text = "这是一个长章节。" * 2000
 
-        client = LLMClient(api_key="test")
+        client = stub_agent_client()
         client.complete = AsyncMock(
             return_value=LLMResponse(
                 text=long_text,
@@ -235,7 +236,7 @@ class TestAutoExpansion:
         short_text = "这是短文。" * 500
         expanded_text = "这是扩写后的长文。" * 2000
 
-        client = LLMClient(api_key="test")
+        client = stub_agent_client()
         client.complete = AsyncMock(
             side_effect=[
                 LLMResponse(

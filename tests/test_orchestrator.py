@@ -14,6 +14,7 @@ from meta_writing.editorial_scorecard import (
     EditorialScorecard,
 )
 from meta_writing.llm import LLMResponse
+from tests.helpers import stub_agent_client
 from meta_writing.orchestrator import Orchestrator, PipelineStage
 from meta_writing.story_bible.loader import StoryBibleLoader
 
@@ -21,7 +22,8 @@ from meta_writing.story_bible.loader import StoryBibleLoader
 CHAPTER_TEXT = "This is chapter four body text." * 40
 
 
-def _make_response(text: str, model: str = "claude-sonnet-4-6") -> LLMResponse:
+
+def _make_response(text: str, model: str = "test-model") -> LLMResponse:
     return LLMResponse(
         text=text,
         usage={"input_tokens": 500, "output_tokens": 300},
@@ -115,7 +117,7 @@ def _make_theme_result(
 class TestOrchestrator:
 
     async def test_happy_path_uses_three_editor_agents(self, tmp_project):
-        orch = Orchestrator(tmp_project, api_key="test")
+        orch = Orchestrator(tmp_project, llm=stub_agent_client())
         orch.planner.plan = AsyncMock(return_value=_make_plan_result())
         orch.writer.write_with_expansion = AsyncMock(
             return_value=WriterResult(chapter_text=CHAPTER_TEXT, raw_response=_make_response(CHAPTER_TEXT))
@@ -147,7 +149,7 @@ class TestOrchestrator:
         assert "综合分" in artifact_text
 
     async def test_revision_loop_continues_when_score_below_threshold(self, tmp_project):
-        orch = Orchestrator(tmp_project, api_key="test")
+        orch = Orchestrator(tmp_project, llm=stub_agent_client())
         orch.planner.plan = AsyncMock(return_value=_make_plan_result())
         orch.writer.write_with_expansion = AsyncMock(
             return_value=WriterResult(chapter_text=CHAPTER_TEXT, raw_response=_make_response(CHAPTER_TEXT))
@@ -185,7 +187,7 @@ class TestOrchestrator:
         assert orch.state.editorial_score.overall_score >= 8.0
 
     async def test_revision_loop_continues_when_dimension_floor_fails(self, tmp_project):
-        orch = Orchestrator(tmp_project, api_key="test")
+        orch = Orchestrator(tmp_project, llm=stub_agent_client())
         orch.planner.plan = AsyncMock(return_value=_make_plan_result())
         orch.writer.write_with_expansion = AsyncMock(
             return_value=WriterResult(chapter_text=CHAPTER_TEXT, raw_response=_make_response(CHAPTER_TEXT))
@@ -233,7 +235,7 @@ class TestOrchestrator:
         assert orch.state.editorial_score.dimensions[EditorialDimension.LANGUAGE] >= 7.0
 
     async def test_hands_off_to_human_when_editorial_progress_stalls(self, tmp_project):
-        orch = Orchestrator(tmp_project, api_key="test")
+        orch = Orchestrator(tmp_project, llm=stub_agent_client())
         orch.planner.plan = AsyncMock(return_value=_make_plan_result())
         orch.writer.write_with_expansion = AsyncMock(
             return_value=WriterResult(chapter_text=CHAPTER_TEXT, raw_response=_make_response(CHAPTER_TEXT))
@@ -294,13 +296,12 @@ class TestOrchestrator:
         bible = loader.load()
         bible.core.chapter_target_chars = 2000
         bible.core.chapter_min_chars = 1600
-        bible.core.writer_provider = "minimax"
         loader.save(bible)
 
         creative_guidance = "TARGET_2000\nADULT_CEREMONY_GLOWUP"
         (tmp_project / "creator_guidance.md").write_text(creative_guidance, encoding="utf-8")
 
-        orch = Orchestrator(tmp_project, api_key="test")
+        orch = Orchestrator(tmp_project, llm=stub_agent_client())
         orch.planner.plan = AsyncMock(return_value=_make_plan_result())
         orch.writer.write_with_expansion = AsyncMock(
             return_value=WriterResult(chapter_text=CHAPTER_TEXT, raw_response=_make_response(CHAPTER_TEXT))
@@ -328,7 +329,7 @@ class TestOrchestrator:
         assert orch.theme_agent.review_chapter.call_args.kwargs["creative_guidance"] == creative_guidance
 
     async def test_human_rejection_raises(self, tmp_project):
-        orch = Orchestrator(tmp_project, api_key="test")
+        orch = Orchestrator(tmp_project, llm=stub_agent_client())
         orch.planner.plan = AsyncMock(return_value=_make_plan_result())
         orch.writer.write_with_expansion = AsyncMock(
             return_value=WriterResult(chapter_text=CHAPTER_TEXT, raw_response=_make_response(CHAPTER_TEXT))

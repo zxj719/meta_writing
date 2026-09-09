@@ -13,7 +13,8 @@ from meta_writing.agents.continuity import (
     IssueType,
 )
 from meta_writing.editorial_scorecard import EditorialDimension
-from meta_writing.llm import LLMClient, LLMResponse
+from meta_writing.llm import LLMResponse
+from tests.helpers import stub_agent_client
 from meta_writing.prompt_profiles import detect_prompt_profile
 from meta_writing.story_bible.compressor import CompressedContext
 
@@ -132,12 +133,12 @@ def bible_context() -> CompressedContext:
 
 
 def _make_agent(response_text: str) -> ContinuityAgent:
-    client = LLMClient(api_key="test")
+    client = stub_agent_client()
     client.complete = AsyncMock(
         return_value=LLMResponse(
             text=response_text,
             usage={"input_tokens": 1500, "output_tokens": 400},
-            model="claude-sonnet-4-6",
+            model="test-model",
             stop_reason="end_turn",
         )
     )

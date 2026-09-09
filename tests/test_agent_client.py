@@ -183,6 +183,9 @@ def _fake_process(stdout: str, returncode: int = 0, stderr: str = ""):
     return proc
 
 
+# 取自一次真实的 `claude -p --output-format json` 输出。
+# 这里出现的模型名是智能体**回报**给我们的运行时元数据，不是我们选择的供应商——
+# 请勿把它改成占位符，它记录的是真实的响应契约。
 CLAUDE_OK = json.dumps({
     "type": "result",
     "subtype": "success",

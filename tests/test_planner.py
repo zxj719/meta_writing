@@ -14,7 +14,8 @@ from meta_writing.agents.planner import (
     _extract_json_block,
     _repair_json_string,
 )
-from meta_writing.llm import LLMClient, LLMResponse
+from meta_writing.llm import LLMResponse
+from tests.helpers import stub_agent_client
 from meta_writing.prompt_profiles import detect_prompt_profile
 from meta_writing.story_bible.compressor import CompressedContext
 
@@ -52,11 +53,11 @@ MOCK_PLANNER_RESPONSE = json.dumps({
 
 @pytest.fixture
 def mock_llm():
-    client = LLMClient(api_key="test")
+    client = stub_agent_client()
     client.complete = AsyncMock(return_value=LLMResponse(
         text=MOCK_PLANNER_RESPONSE,
         usage={"input_tokens": 1000, "output_tokens": 500},
-        model="claude-opus-4-6",
+        model="test-model",
         stop_reason="end_turn",
     ))
     return client
@@ -115,11 +116,11 @@ class TestPlannerAgent:
 
     @pytest.mark.asyncio
     async def test_parse_failure_returns_fallback(self, bible_context):
-        client = LLMClient(api_key="test")
+        client = stub_agent_client()
         client.complete = AsyncMock(return_value=LLMResponse(
             text="This is not valid JSON",
             usage={"input_tokens": 100, "output_tokens": 50},
-            model="claude-opus-4-6",
+            model="test-model",
             stop_reason="end_turn",
         ))
 
@@ -187,7 +188,7 @@ class TestPlannerAgent:
             "context_notes": "修复成功",
         })
 
-        client = LLMClient(api_key="test")
+        client = stub_agent_client()
         # First call returns broken JSON, second call (repair) returns valid JSON
         client.complete = AsyncMock(side_effect=[
             LLMResponse(
