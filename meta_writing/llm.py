@@ -12,7 +12,9 @@ import json
 import os
 import shlex
 import shutil
+import tempfile
 from collections.abc import Mapping
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -175,6 +177,23 @@ def build_agent_command(
 
 
 DEFAULT_AGENT_TIMEOUT_SECONDS = 900.0
+_NEUTRAL_CWD_NAME = "meta-writing-agent-cwd"
+
+
+def neutral_cwd() -> str:
+    """一个空目录，用作智能体子进程的工作目录。
+
+    智能体 CLI 会从 cwd 向上自动发现 CLAUDE.md 等项目上下文。若直接在仓库里
+    运行，它会把自己当成「本项目的助手」，在正文前加上「我需要遵循项目的……」
+    这类旁白——对审稿调用只是噪声（JSON 提取器能绕过），但对写作调用会被原样
+    写进 chapters/NNN.md。
+
+    实测：在仓库内运行返回 'I need to follow the project's ...\\n\\n{"ok": true}'，
+    在空目录运行返回干净的 '{"ok": true}'，且单次成本从 $0.147 降到 $0.065。
+    """
+    path = Path(tempfile.gettempdir()) / _NEUTRAL_CWD_NAME
+    path.mkdir(parents=True, exist_ok=True)
+    return str(path)
 
 
 def _resolve_timeout(env: Mapping[str, str] | None = None) -> float:
@@ -230,6 +249,7 @@ class AgentClient:
     async def _invoke_once(self, argv: list[str], stdin_text: str) -> LLMResponse:
         process = await asyncio.create_subprocess_exec(
             *argv,
+            cwd=neutral_cwd(),
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,

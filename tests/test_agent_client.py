@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import pathlib
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -290,3 +291,21 @@ async def test_codex_uses_raw_stdout_as_text(monkeypatch):
 
     assert response.text == "codex 写的正文"
     assert client.usage.input_tokens == 0
+
+
+@pytest.mark.asyncio
+async def test_complete_runs_in_neutral_cwd(monkeypatch, tmp_path):
+    """子进程必须在空目录里跑，否则智能体会自动发现仓库的 CLAUDE.md 并加旁白。"""
+    spec = AgentSpec(kind="claude", argv=("/usr/bin/claude",))
+    create = AsyncMock(return_value=_fake_process(CLAUDE_OK))
+    monkeypatch.setattr("meta_writing.llm.asyncio.create_subprocess_exec", create)
+    monkeypatch.chdir(tmp_path)
+
+    client = AgentClient(agent=spec)
+    await client.complete("SYS", [{"role": "user", "content": "U"}])
+
+    cwd = create.await_args.kwargs["cwd"]
+    assert cwd is not None
+    assert pathlib.Path(cwd).is_dir()
+    assert not (pathlib.Path(cwd) / "CLAUDE.md").exists()
+    assert pathlib.Path(cwd).resolve() != pathlib.Path(tmp_path).resolve()

@@ -41,3 +41,6 @@ Thumbs.db
 
 # gstack
 .claude/skills/
+
+# Agent tooling scratch DB
+ruvector.db
