@@ -30,11 +30,7 @@ from .story_bible.schema import (
     StoryCore,
     WorldLayer,
 )
-from .workspace import (
-    SUPPORTED_WORKFLOW_MODES,
-    WORKFLOW_MODE_MANUAL,
-    WorkspaceManager,
-)
+from .workspace import WorkspaceManager
 
 console = Console()
 
@@ -72,20 +68,6 @@ def _resolve_loader(ctx: click.Context) -> tuple[Path, StoryBibleLoader]:
     return project_dir, StoryBibleLoader(project_dir / "story_data")
 
 
-def _enforce_project_workflow_mode(
-    ctx: click.Context,
-    expected_mode: str,
-    command_label: str,
-) -> None:
-    project_dir: Path = ctx.obj["project_dir"]
-    manager: WorkspaceManager = ctx.obj["workspace_manager"]
-    actual_mode = manager.workflow_mode_for_project_dir(project_dir)
-    if actual_mode and actual_mode != expected_mode:
-        raise click.ClickException(
-            f"{command_label} requires a project in {expected_mode} workflow mode. "
-            f"Current project mode: {actual_mode}."
-        )
-
 
 @cli.group()
 def project() -> None:
@@ -104,14 +86,6 @@ def project() -> None:
     default=False,
     help="Move the imported story files out of the source directory after copying",
 )
-@click.option(
-    "--mode",
-    "workflow_mode",
-    type=click.Choice(list(SUPPORTED_WORKFLOW_MODES)),
-    default=WORKFLOW_MODE_MANUAL,
-    show_default=True,
-    help="Workflow mode for the new project",
-)
 @click.option("--activate/--no-activate", default=True, help="Set as the active project")
 @click.pass_context
 def create_project(
@@ -119,7 +93,6 @@ def create_project(
     name: str,
     from_project_dir: str | None,
     move_source: bool,
-    workflow_mode: str,
     activate: bool,
 ) -> None:
     """Create a new novel project scaffold."""
@@ -128,7 +101,6 @@ def create_project(
         name,
         source_dir=from_project_dir,
         move_source=move_source,
-        workflow_mode=workflow_mode,
     )
     if activate:
         manager.set_current_project(name)
@@ -152,7 +124,7 @@ def list_projects(ctx: click.Context) -> None:
 
     for item in projects:
         suffix = " (active)" if item.is_active else ""
-        console.print(f"{item.name} [{item.workflow_mode}]{suffix}", markup=False)
+        console.print(f"{item.name}{suffix}", markup=False)
 
 
 @project.command("use")
@@ -177,19 +149,6 @@ def current_project(ctx: click.Context) -> None:
         console.print("当前没有激活项目。")
 
 
-@project.command("mode")
-@click.argument("workflow_mode", type=click.Choice(list(SUPPORTED_WORKFLOW_MODES)))
-@click.option("--name", default=None, help="Project name to update (defaults to current project)")
-@click.pass_context
-def project_mode(ctx: click.Context, workflow_mode: str, name: str | None) -> None:
-    """Set the workflow mode for a project."""
-    manager: WorkspaceManager = ctx.obj["workspace_manager"]
-    target_name = name or manager.get_current_project()
-    if not target_name:
-        raise click.ClickException("当前没有激活项目，请先使用 project use 或传入 --name。")
-    manager.set_project_workflow_mode(target_name, workflow_mode)
-    console.print(f"{target_name} workflow mode -> {workflow_mode}")
-
 
 @project.command("migrate-root")
 @click.argument("name")
@@ -198,21 +157,12 @@ def project_mode(ctx: click.Context, workflow_mode: str, name: str | None) -> No
     default=True,
     help="Move the legacy root story files after copying",
 )
-@click.option(
-    "--mode",
-    "workflow_mode",
-    type=click.Choice(list(SUPPORTED_WORKFLOW_MODES)),
-    default=WORKFLOW_MODE_MANUAL,
-    show_default=True,
-    help="Workflow mode for the migrated project",
-)
 @click.option("--activate/--no-activate", default=False, help="Set as the active project")
 @click.pass_context
 def migrate_root_project(
     ctx: click.Context,
     name: str,
     move_source: bool,
-    workflow_mode: str,
     activate: bool,
 ) -> None:
     """Move legacy root-level novel files into a named project."""
@@ -220,7 +170,6 @@ def migrate_root_project(
     project_dir = manager.migrate_legacy_root_project(
         name,
         move_source=move_source,
-        workflow_mode=workflow_mode,
     )
     if activate:
         manager.set_current_project(name)
@@ -294,7 +243,6 @@ def init(ctx: click.Context) -> None:
 @click.pass_context
 def generate(ctx: click.Context, guidance: str) -> None:
     """Generate the next chapter using the full pipeline."""
-    _enforce_project_workflow_mode(ctx, expected_mode="manual", command_label="meta-writing generate")
     project_dir: Path = ctx.obj["project_dir"]
 
     async def _run() -> None:

@@ -13,15 +13,11 @@ STATE_DIRNAME = ".meta-writing"
 STATE_FILENAME = "workspace.json"
 METADATA_FILENAME = ".meta-writing-project.json"
 CREATOR_GUIDANCE_FILENAME = "creator_guidance.md"
-WORKFLOW_MODE_MANUAL = "manual"
-WORKFLOW_MODE_AUTOMATIC = "automatic"
-SUPPORTED_WORKFLOW_MODES = (WORKFLOW_MODE_MANUAL, WORKFLOW_MODE_AUTOMATIC)
 
 PROJECT_COPY_ITEMS = (
     "story_data",
     "chapters",
     "learned_rules.md",
-    "auto_runner_log.md",
     "editorial_report.md",
     CREATOR_GUIDANCE_FILENAME,
 )
@@ -64,33 +60,22 @@ def _sanitize_project_name(name: str) -> str:
     return slug
 
 
-def _normalize_workflow_mode(mode: str | None) -> str:
-    normalized = (mode or WORKFLOW_MODE_MANUAL).strip().lower()
-    if normalized not in SUPPORTED_WORKFLOW_MODES:
-        raise ValueError(
-            f"Unsupported workflow mode: {mode}. Expected one of: {', '.join(SUPPORTED_WORKFLOW_MODES)}"
-        )
-    return normalized
-
 
 @dataclass(frozen=True)
 class ProjectRecord:
     name: str
     path: Path
-    workflow_mode: str = WORKFLOW_MODE_MANUAL
     is_active: bool = False
 
 
 @dataclass(frozen=True)
 class ProjectMetadata:
     name: str
-    workflow_mode: str = WORKFLOW_MODE_MANUAL
 
 
 @dataclass(frozen=True)
 class ProjectRuntimePaths:
     learned_rules: Path
-    auto_runner_log: Path
     editorial_report: Path
     editorial_reviews_dir: Path
 
@@ -99,7 +84,6 @@ class ProjectRuntimePaths:
         project_dir = Path(project_dir)
         return cls(
             learned_rules=project_dir / "learned_rules.md",
-            auto_runner_log=project_dir / "auto_runner_log.md",
             editorial_report=project_dir / "editorial_report.md",
             editorial_reviews_dir=project_dir / "editorial_reviews",
         )
@@ -113,23 +97,13 @@ def read_project_metadata(project_dir: str | Path) -> ProjectMetadata | None:
         data = json.loads(metadata_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return None
-    return ProjectMetadata(
-        name=str(data.get("name") or Path(project_dir).name),
-        workflow_mode=_normalize_workflow_mode(data.get("workflow_mode")),
-    )
+    return ProjectMetadata(name=str(data.get("name") or Path(project_dir).name))
 
 
 def write_project_metadata(project_dir: str | Path, metadata: ProjectMetadata) -> None:
     metadata_path = Path(project_dir) / METADATA_FILENAME
     metadata_path.write_text(
-        json.dumps(
-            {
-                "name": metadata.name,
-                "workflow_mode": _normalize_workflow_mode(metadata.workflow_mode),
-            },
-            ensure_ascii=False,
-            indent=2,
-        ),
+        json.dumps({"name": metadata.name}, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
@@ -166,10 +140,8 @@ class WorkspaceManager:
         name: str,
         source_dir: str | Path | None = None,
         move_source: bool = False,
-        workflow_mode: str = WORKFLOW_MODE_MANUAL,
     ) -> Path:
         slug = _sanitize_project_name(name)
-        resolved_workflow_mode = _normalize_workflow_mode(workflow_mode)
         project_dir = self.projects_dir / slug
         if project_dir.exists():
             raise FileExistsError(f"Project already exists: {slug}")
@@ -185,10 +157,7 @@ class WorkspaceManager:
             if move_source:
                 self._remove_project_contents(source_path)
 
-        write_project_metadata(
-            project_dir,
-            ProjectMetadata(name=slug, workflow_mode=resolved_workflow_mode),
-        )
+        write_project_metadata(project_dir, ProjectMetadata(name=slug))
         self._ensure_creator_guidance(project_dir)
         return project_dir
 
@@ -204,7 +173,6 @@ class WorkspaceManager:
                 ProjectRecord(
                     name=metadata.name,
                     path=path,
-                    workflow_mode=metadata.workflow_mode,
                     is_active=metadata.name == active,
                 )
             )
@@ -214,17 +182,6 @@ class WorkspaceManager:
         project_dir = self._require_project_dir(_sanitize_project_name(name))
         return read_project_metadata(project_dir) or ProjectMetadata(name=project_dir.name)
 
-    def set_project_workflow_mode(self, name: str, workflow_mode: str) -> None:
-        slug = _sanitize_project_name(name)
-        project_dir = self._require_project_dir(slug)
-        write_project_metadata(
-            project_dir,
-            ProjectMetadata(name=slug, workflow_mode=_normalize_workflow_mode(workflow_mode)),
-        )
-
-    def workflow_mode_for_project_dir(self, project_dir: str | Path) -> str | None:
-        metadata = read_project_metadata(project_dir)
-        return metadata.workflow_mode if metadata else None
 
     def set_current_project(self, name: str) -> None:
         slug = _sanitize_project_name(name)
@@ -299,7 +256,6 @@ class WorkspaceManager:
         self,
         name: str,
         move_source: bool = True,
-        workflow_mode: str = WORKFLOW_MODE_MANUAL,
     ) -> Path:
         if not self.has_legacy_root_project():
             raise FileNotFoundError("Workspace root does not contain legacy novel files")
@@ -307,7 +263,6 @@ class WorkspaceManager:
             name,
             source_dir=self.root_dir,
             move_source=move_source,
-            workflow_mode=workflow_mode,
         )
 
     def _should_block_implicit_root_project(self) -> bool:

@@ -32,7 +32,6 @@ from .story_bible.compressor import StoryBibleCompressor
 from .story_bible.loader import StoryBibleLoader
 from .story_bible.schema import ChapterSummary, StoryBible
 from .style_linter import Severity, StyleLinter
-from .workspace import WORKFLOW_MODE_AUTOMATIC, read_project_metadata
 
 
 MAX_REVISION_ITERATIONS = 5
@@ -86,13 +85,6 @@ class Orchestrator:
         writer_provider: str | None = None,
     ) -> None:
         self.project_dir = Path(project_dir)
-        project_metadata = read_project_metadata(self.project_dir)
-        if project_metadata and project_metadata.workflow_mode == WORKFLOW_MODE_AUTOMATIC:
-            raise ValueError(
-                "This project is configured for automatic workflow mode. "
-                "Use auto_runner.py or switch the project back to manual workflow mode."
-            )
-
         self.story_data_dir = self.project_dir / "story_data"
         self.chapters_dir = self.project_dir / "chapters"
         self.creator_guidance_path = self.project_dir / "creator_guidance.md"

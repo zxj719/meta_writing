@@ -16,7 +16,6 @@ from meta_writing.editorial_scorecard import (
 from meta_writing.llm import LLMResponse
 from meta_writing.orchestrator import Orchestrator, PipelineStage
 from meta_writing.story_bible.loader import StoryBibleLoader
-from meta_writing.workspace import METADATA_FILENAME
 
 
 CHAPTER_TEXT = "This is chapter four body text." * 40
@@ -114,14 +113,6 @@ def _make_theme_result(
 
 @pytest.mark.asyncio
 class TestOrchestrator:
-    async def test_rejects_automatic_workspace_project(self, tmp_project):
-        (tmp_project / METADATA_FILENAME).write_text(
-            '{"name": "book-two", "workflow_mode": "automatic"}',
-            encoding="utf-8",
-        )
-
-        with pytest.raises(ValueError, match="automatic workflow mode"):
-            Orchestrator(tmp_project, api_key="test")
 
     async def test_happy_path_uses_three_editor_agents(self, tmp_project):
         orch = Orchestrator(tmp_project, api_key="test")
