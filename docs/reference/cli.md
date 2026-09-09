@@ -51,22 +51,21 @@ meta-writing --workspace-dir . --project rescue-male-lead status
 
 | 选项 | 默认 | 说明 |
 |------|------|------|
-| `--mode manual\|automatic` | `manual` | 工作流模式 |
 | `--activate / --no-activate` | `--activate` | 是否设为当前激活项目 |
 | `--from-project-dir PATH` | 无 | 从既有项目目录导入内容 |
 | `--move-source / --copy-source` | `--copy-source` | 导入后是否删除源文件 |
 
-导入范围固定为 `PROJECT_COPY_ITEMS`：`story_data`、`chapters`、`learned_rules.md`、`auto_runner_log.md`、`editorial_report.md`、`creator_guidance.md`。
+导入范围固定为 `PROJECT_COPY_ITEMS`：`story_data`、`chapters`、`learned_rules.md`、`editorial_report.md`、`creator_guidance.md`。
 
 项目已存在时抛 `FileExistsError`。
 
 ```powershell
-meta-writing --workspace-dir . project create my-new-novel --mode manual --activate
+meta-writing --workspace-dir . project create my-new-novel --activate
 ```
 
 ### `project list`
 
-列出全部项目，格式 `<名称> [<模式>]`，激活项目附 ` (active)`。
+列出全部项目，激活项目附 ` (active)`。
 
 ### `project use NAME`
 
@@ -76,16 +75,6 @@ meta-writing --workspace-dir . project create my-new-novel --mode manual --activ
 
 打印当前激活项目名。
 
-### `project mode MODE`
-
-修改工作流模式。`MODE` 取 `manual` 或 `automatic`。
-
-| 选项 | 默认 |
-|------|------|
-| `--name NAME` | 当前激活项目 |
-
-无激活项目且未传 `--name` 时报错。
-
 ### `project migrate-root NAME`
 
 把工作区根的遗留小说文件迁进 `novels/<NAME>/`。
@@ -93,7 +82,6 @@ meta-writing --workspace-dir . project create my-new-novel --mode manual --activ
 | 选项 | 默认 |
 |------|------|
 | `--move-source / --copy-source` | `--move-source` |
-| `--mode manual\|automatic` | `manual` |
 | `--activate / --no-activate` | `--no-activate` |
 
 注意此命令的 `--move-source` 与 `--activate` 默认值都与 `project create` 相反。
@@ -112,7 +100,6 @@ meta-writing --workspace-dir . project create my-new-novel --mode manual --activ
 | 体裁编号（10 选 1） | `1` | `genre` |
 | 核心爽点类型 | 空 | `target_satisfaction_type` |
 | 计划总章节数 | `100` | `total_planned_chapters` |
-| Writer provider | `minimax` | `writer_provider` |
 | Target chapter chars | `2000` | `chapter_target_chars` |
 | Minimum chars before expansion | `max(800, 目标×0.8)` | `chapter_min_chars` |
 | 伏笔最大寿命 | 按体裁：玄幻 30 / 言情 15 / 悬疑 20 / 其他 20 | `foreshadowing_max_age_chapters` |
@@ -126,7 +113,7 @@ meta-writing --workspace-dir . project create my-new-novel --mode manual --activ
 
 ## 4. `generate` — 生成下一章
 
-跑完整手动流水线。要求项目处于 `manual` 模式，否则抛 `ClickException`。
+跑完整生成流水线。
 
 | 选项 | 说明 |
 |------|------|
@@ -144,9 +131,9 @@ meta-writing --project rescue-male-lead generate --guidance "继续下一章，�
    - `reject` 终止流程，不落盘
 3. **状态变更确认** — 表格展示角色/字段/旧值/新值，确认后写回 Story Bible
 
-完成后打印章节字数、token 用量与预估成本。
+完成后打印章节字数、token 用量与实际成本。
 
-> 成本估算按 MiniMax 定价计算。写手切到 DeepSeek 时，其用量不计入 `orch.llm.usage`，报告会低估。
+> 成本是智能体 CLI 回报的真实值（`total_cost_usd` 累加），不是估算。
 
 ---
 
@@ -175,29 +162,7 @@ meta-writing --project rescue-male-lead generate --guidance "继续下一章，�
 
 ## 7. 非 CLI 入口
 
-以下两个脚本不属于 `meta-writing` 命令组，直接用 `python` 运行，但共享同一套项目解析参数（`--workspace-dir` / `--project` / `--project-dir`）。
-
-### `auto_runner.py` — 自动生成循环
-
-要求项目处于 `automatic` 模式。
-
-```powershell
-python auto_runner.py --project <name> --from 1 --to 10
-python auto_runner.py --project <name> --to 10 --dry-run
-python auto_runner.py --project <name> --to 10 --push
-```
-
-| 参数 | 默认 | 说明 |
-|------|------|------|
-| `--from N` | `current_chapter + 1` | 起始章 |
-| `--to N` | `20` | 结束章（含） |
-| `--writer-provider` | 项目配置 | 覆盖写手供应商 |
-| `--dry-run` | 关 | 只规划选枝，不写不提交 |
-| `--push` | 关 | 每章后 git push |
-
-详见 [`../architecture/pipelines.md`](../architecture/pipelines.md)。
-
-> 该文件在工作区中存在未提交的删除。
+以下脚本不属于 `meta-writing` 命令组，直接用 `python` 运行，但共享同一套项目解析参数（`--workspace-dir` / `--project` / `--project-dir`）。
 
 ### `scripts/editorial_pass.py` — 独立审稿
 

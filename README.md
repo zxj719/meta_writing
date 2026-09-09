@@ -16,21 +16,21 @@
 
 ## 快速开始
 
-需要 Python 3.12+ 与至少一个 MiniMax API key。
+需要 Python 3.12+ 与一个已登录的智能体 CLI（Claude Code 或 Codex）。**不需要任何模型供应商的 API key。**
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
 
-$env:MINIMAX_API_KEY = "..."
-python -m pytest -q                    # 全部 LLM 调用已 mock，不消耗额度
+python -m pytest -q                    # 全部智能体调用已 mock，不消耗额度
+python -X utf8 -c "from meta_writing.llm import detect_agent; print(detect_agent().kind)"
 ```
 
 开一本新书并写出第一章：
 
 ```powershell
-meta-writing --workspace-dir . project create my-novel --mode manual --activate
+meta-writing --workspace-dir . project create my-novel --activate
 meta-writing --workspace-dir . --project my-novel init
 # 填写 novels/my-novel/creator_guidance.md
 meta-writing --workspace-dir . --project my-novel add-character
@@ -44,10 +44,11 @@ meta-writing --workspace-dir . --project my-novel generate --guidance "第一章
 ## 系统构成
 
 ```
-编排层    orchestrator.py（手动）  /  auto_runner.py（自动）
+编排层    orchestrator.py
 智能体层  Planner Writer ┃ Continuity Style Theme
 质量层    style_linter · editorial_scorecard · negative_examples · prompt_profiles
 状态层    story_bible/（schema · loader · compressor） · workspace · vector_store
+后端      llm.py（子进程调用当前环境的智能体 CLI）
 ```
 
 一章的完整生命周期：
@@ -67,7 +68,6 @@ meta-writing --workspace-dir . --project my-novel generate --guidance "第一章
 | 路径 | 内容 |
 |------|------|
 | `meta_writing/` | Python 包：CLI、编排、agent、Story Bible、文风检查、工作区管理 |
-| `auto_runner.py` | 自动生成循环（仅限 `automatic` 模式项目） |
 | `scripts/editorial_pass.py` | 对已有章节单独跑审稿 |
 | `novels/<project>/` | 隔离的小说项目：章节、Story Bible、创作指导、审稿记录 |
 | `docs/` | 项目文档，见下 |
@@ -77,7 +77,7 @@ meta-writing --workspace-dir . --project my-novel generate --guidance "第一章
 
 ```
 novels/<project>/
-├── .meta-writing-project.json    项目名 + workflow_mode
+├── .meta-writing-project.json    项目名
 ├── creator_guidance.md           长期创作指导（人写，影响全部 agent）
 ├── learned_rules.md              累积的风格与连续性规则
 ├── chapters/NNN.md               正文
@@ -87,19 +87,25 @@ novels/<project>/
 
 ---
 
-## 两种工作流
+## 运行前提
 
-每个项目在 `.meta-writing-project.json` 里声明 `workflow_mode`，两条链路**互斥**——防止自动循环覆写人工精修过的章节。
+系统**不调用任何模型供应商的 HTTP API**，也不需要 API key。全部生成与审稿都子进程调用当前环境的智能体 CLI：
 
-| | `manual` | `automatic` |
-|---|---|---|
-| 入口 | `meta-writing generate` | `python auto_runner.py --from N --to M` |
-| 分支选择 / 验收 / 状态回写 | 人 | LLM |
-| 适用 | 质量敏感项目（推荐） | 批量产出、工具实验 |
+| 探测顺序 | 来源 |
+|---------|------|
+| 1 | `META_WRITING_AGENT_CMD`（完整命令，逃生舱） |
+| 2 | `META_WRITING_AGENT`（`claude` / `codex`） |
+| 3 | PATH（`claude` 优先，其次 `codex`） |
 
-对比详情：[`docs/architecture/pipelines.md`](docs/architecture/pipelines.md)
+模型由当前智能体会话决定——代码里不指定模型，也不再有 MiniMax / DeepSeek / Anthropic 的分支。
 
-> `auto_runner.py` 及其测试在当前工作区中处于**已删除但未提交**状态。本文档按仓库 HEAD 描述。
+三个需要知道的取舍：
+
+- **每次调用约 11.7K input token 的固定开销**（CLI 启动与上下文加载），与提示词长短基本无关
+- **子进程在空目录中运行**，否则智能体会自动发现本仓库的 `CLAUDE.md` 并在正文前加旁白
+- **采样温度被语义化**成提示词指令（CLI 没有温度旋钮），不等价但保住了「审稿要稳、规划要散」的分层
+
+详见 [`docs/architecture/agent-backend.md`](docs/architecture/agent-backend.md)
 
 ---
 
@@ -139,29 +145,13 @@ novels/<project>/
 
 ---
 
-## 模型供应商
-
-| 供应商 | 用途 | 环境变量 |
-|--------|------|---------|
-| MiniMax | 手动链路全部角色；自动链路的 StyleAgent | `MINIMAX_API_KEY` |
-| DeepSeek | 写手可选；自动链路的结构化抽取 | `DEEPSEEK_API_KEY` |
-| Anthropic | 自动链路的编辑角色（缺失则降级） | `ANTHROPIC_API_KEY` |
-
-**密钥只放环境变量或被忽略的 `.env`，绝不写进被跟踪的文件。**
-
-> 手动链路只需 `MINIMAX_API_KEY` 即可完整运行。自动链路缺少 Anthropic/DeepSeek 凭据时会**静默降级**（仅打 WARNING），审稿严格度随之改变——运行时请检查启动日志。
-
-路由细节与配置陷阱：[`docs/architecture/model-routing.md`](docs/architecture/model-routing.md)
-
----
-
 ## 文档
 
 完整索引：[`docs/README.md`](docs/README.md)
 
 | 层 | 内容 |
 |----|------|
-| [`docs/architecture/`](docs/architecture/) | 总体设计、状态层、智能体层、编排层、模型路由 |
+| [`docs/architecture/`](docs/architecture/) | 总体设计、状态层、智能体层、编排层、智能体后端 |
 | [`docs/guides/`](docs/guides/) | 快速开始、开新书、手动写作循环、多项目工作区 |
 | [`docs/reference/`](docs/reference/) | CLI、Story Bible 字段、配置项、文风规则 |
 | [`docs/operations/`](docs/operations/) | 评分体系维护、测试与发布卫生 |
@@ -179,6 +169,6 @@ python -m pytest -q
 rg -n "sk-|API_KEY\s*=|AUTH_TOKEN\s*=|BEGIN .*PRIVATE KEY" .
 ```
 
-两条链路都会尝试自动 `git commit`，但**失败是静默的**——生成后请 `git log -1 --stat` 确认。
+编排层会尝试自动 `git commit`，但**失败是静默的**——生成后请 `git log -1 --stat` 确认。
 
 详见 [`docs/operations/testing-and-verification.md`](docs/operations/testing-and-verification.md)

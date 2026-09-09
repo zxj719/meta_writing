@@ -1,13 +1,13 @@
 # New Novel Quickstart
 
-This is the shortest path to start a new novel in the `meta_writing` workspace with MiniMax as the writer and chapter length around 2000 Chinese characters.
+This is the shortest path to start a new novel in the `meta_writing` workspace, with chapter length around 2000 Chinese characters. Generation runs through whatever agent CLI is available in your environment.
 
 ## 1. Create a new project
 
 From the `meta_writing` repo root:
 
 ```powershell
-meta-writing project create tomato-romance --mode manual --activate
+meta-writing project create tomato-romance --activate
 ```
 
 This creates:
@@ -18,12 +18,9 @@ novels/tomato-romance/
   chapters/
   creator_guidance.md
   learned_rules.md
-  auto_runner_log.md
   editorial_report.md
 ```
 
-Use `--mode manual` for the interactive first-five-chapter style workflow.
-Use `--mode automatic` only when you want `auto_runner.py` to own planning, draft, review, and revision.
 
 ## 2. Fill in the project brief
 
@@ -66,56 +63,31 @@ meta-writing init --project tomato-romance
 
 During init:
 
-- Set `Writer provider` to `minimax`
 - Set `Target chapter chars` to `2000`
 - Set `Minimum chars before expansion` to around `1600`
 
-These values are saved into `story_data/story_core.yaml`, so each novel keeps its own writer and length policy.
+These values are saved into `story_data/story_core.yaml`, so each novel keeps its own length policy.
 
 ## 4. Start writing
-
-Interactive pipeline:
 
 ```powershell
 meta-writing generate --project tomato-romance
 ```
 
-`meta-writing generate` only works on `manual` projects.
 
-Autonomous pipeline:
+## 5. Agent availability
 
-```powershell
-python auto_runner.py --project tomato-romance --workspace-dir .
-```
-
-`auto_runner.py` only works on `automatic` projects. If you want that path, create the project with `--mode automatic` or switch the project mode later:
+No model-provider API key is needed. Generation and review go through the agent CLI in your
+environment (Claude Code or Codex), which handles its own authentication.
 
 ```powershell
-meta-writing project mode automatic --name tomato-romance
+claude -p "reply ok"
+python -X utf8 -c "from meta_writing.llm import detect_agent; print(detect_agent().kind)"
 ```
 
-If you want to force MiniMax for one run:
-
-```powershell
-python auto_runner.py --project tomato-romance --workspace-dir . --writer-provider minimax
-```
-
-## 5. MiniMax auth
-
-Either set the dedicated MiniMax variable:
-
-```powershell
-$env:MINIMAX_API_KEY = "..."
-```
-
-Or use the Anthropic-compatible aliases:
-
-```powershell
-$env:ANTHROPIC_BASE_URL = "https://api.minimaxi.com/anthropic"
-$env:ANTHROPIC_AUTH_TOKEN = "..."
-```
-
-Do not commit real tokens into the repo.
+If `AgentNotFoundError` is raised, put `claude` (or `codex`) on PATH, or set
+`META_WRITING_AGENT` / `META_WRITING_AGENT_CMD`. See
+[`../reference/configuration.md`](../reference/configuration.md).
 
 ## 6. Recommended workflow for your reference format
 

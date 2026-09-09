@@ -12,14 +12,14 @@ python -m pytest tests/test_style_linter.py -q   # 单文件
 python -m pytest -m integration              # 真实 LLM 调用（会消耗额度）
 ```
 
-**全部单元测试中的 LLM 调用都是 mock 的**，不消耗 API 额度、不需要配置密钥。只有 `@pytest.mark.integration` 标记的测试会真实调用。
+**全部单元测试中的智能体调用都是 mock 的**（`asyncio.create_subprocess_exec` 被打桩），不会真的 spawn 进程、不消耗额度。只有 `@pytest.mark.integration` 标记的测试会真实调用。
 
 ### 覆盖范围
 
 | 测试文件 | 覆盖 |
 |---------|------|
 | `test_story_bible.py` | schema 校验、YAML 往返、压缩三级降级 |
-| `test_workspace.py` | 多项目隔离、工作流模式、项目解析顺序 |
+| `test_workspace.py` | 多项目隔离、项目解析顺序 |
 | `test_orchestrator.py` | 流水线状态机、审稿循环、落盘 |
 | `test_planner.py` | JSON 多级修复、兜底分支 |
 | `test_writer.py` | 写作/扩写/修订路由、字数触发 |
@@ -27,7 +27,7 @@ python -m pytest -m integration              # 真实 LLM 调用（会消耗额�
 | `test_editorial_scorecard.py` | 加权聚合、门槛、停滞判断 |
 | `test_style_linter.py` | 正则规则的正例与反例 |
 | `test_prompt_profiles.py` | 档案识别与提示词拼接 |
-| `test_llm.py` | 重试、退避、供应商归一化 |
+| `test_agent_client.py` | 智能体探测、命令构造、温度语义化、响应解析、重试 |
 | `test_vector_store.py` | 分块策略 |
 
 ### 改动后必须补测的位置
@@ -38,9 +38,7 @@ python -m pytest -m integration              # 真实 LLM 调用（会消耗额�
 | 评分阈值/权重 | `test_editorial_scorecard.py` 的边界用例 |
 | Story Bible schema | YAML 往返 + 缺字段的降级行为 |
 | 审稿 agent | 解析失败时的降级返回值 |
-| 编排逻辑 | **两条链路都要改、都要测**（见下） |
-
-> `orchestrator.py` 与 `auto_runner.py` 的审稿逻辑是各自实现的。只改一边、只测一边，会产生「手动更严、自动更松」的静默偏差。
+| 编排逻辑 | `test_orchestrator.py` 的流水线用例 |
 
 ---
 
@@ -94,12 +92,11 @@ git diff --check                 # 行尾空白、冲突标记
 rg -n "sk-|API_KEY\s*=|AUTH_TOKEN\s*=|BEGIN .*PRIVATE KEY" .
 ```
 
-`.gitignore` 已排除 `.env` / `.env.local`，但手工新建的配置文件不在其列。**每次提交前扫一遍**。
+系统本身不再需要任何模型供应商密钥，但仍值得扫——手工新建的配置文件不在 `.gitignore` 之列。**每次提交前扫一遍**。
 
 `.gitignore` 已覆盖的运行时产物：
 
 ```
-**/auto_runner_log.md
 **/editorial_report.md
 _planner_result*.json
 .meta-writing/
@@ -134,7 +131,7 @@ git push origin master
 
 ## 5. 自动提交的静默失败
 
-两条链路都会在落盘后尝试 `git add` + `git commit`：
+编排层在落盘后会尝试 `git add` + `git commit`：
 
 ```python
 try:

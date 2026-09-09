@@ -1,6 +1,6 @@
 # 快速开始
 
-从零把 `meta_writing` 跑起来。全程本地，不需要任何服务端、部署或网络服务——只需要一个 Python 环境和至少一个模型供应商的 API key。
+从零把 `meta_writing` 跑起来。全程本地，不需要任何服务端、部署或网络服务——只需要一个 Python 环境和一个已登录的智能体 CLI。
 
 ---
 
@@ -8,7 +8,8 @@
 
 - Python **3.12+**
 - git（章节落盘时会自动 commit）
-- 至少一个 API key：MiniMax（必需）；DeepSeek、Anthropic 可选
+- 一个已登录的智能体 CLI：Claude Code（`claude`）或 Codex（`codex`）
+- **不需要**任何模型供应商的 API key
 
 ---
 
@@ -31,25 +32,40 @@ python -m pip install -e ".[dev]"
 
 安装后 `meta-writing` 命令可用。也可以始终用 `python -m meta_writing.cli` 免安装调用。
 
-> 使用向量检索（当前无链路调用）需要额外安装 `chromadb` 与 `sentence-transformers` 的模型运行时依赖。BGE-M3 约需 2.2GB 显存。
+> 使用向量检索（当前无调用方）需要额外安装 `chromadb` 与 `sentence-transformers` 的模型运行时依赖。BGE-M3 约需 2.2GB 显存。
 
 ---
 
-## 3. 配置密钥
+## 3. 准备智能体
 
-**不要把密钥写进任何被 git 跟踪的文件。** 放进 shell 环境或本地 `.env`（已在 `.gitignore` 中）。
+系统**不需要任何模型供应商的 API key**。它会子进程调用你环境里的智能体 CLI（Claude Code 或 Codex），认证由该 CLI 自己负责。
 
-```powershell
-$env:MINIMAX_API_KEY = "..."
-```
-
-最小可运行配置只需 `MINIMAX_API_KEY`。完整变量表与解析顺序见 [`../reference/configuration.md`](../reference/configuration.md)。
-
-验证：
+确认智能体可用且已登录：
 
 ```powershell
-python -X utf8 -c "from meta_writing.llm import LLMClient; c=LLMClient(); print('key set:', bool(c.api_key)); print('base:', c.client.base_url)"
+claude -p "回复 ok"
 ```
+
+若提示 `Not logged in`，先在交互式 `claude` 里跑 `/login`。
+
+确认 `meta_writing` 能解析到它：
+
+```powershell
+python -X utf8 -c "from meta_writing.llm import detect_agent; s=detect_agent(); print(s.kind, s.argv)"
+```
+
+预期打印 `claude ('.../claude.EXE',)`。若抛 `AgentNotFoundError`，按错误信息里的三种方式之一配置——最省事的是把 `claude` 放上 PATH。
+
+需要指定别的智能体时：
+
+```powershell
+$env:META_WRITING_AGENT = "codex"                        # 用 codex
+$env:META_WRITING_AGENT_CMD = "/opt/my-agent --flag"     # 完全自定义
+```
+
+完整变量表见 [`../reference/configuration.md`](../reference/configuration.md)。
+
+> **成本提示**：每次调用有约 11.7K input token 的固定开销（CLI 启动与上下文加载），与提示词长短基本无关。一章最坏约 20 次调用。
 
 ---
 
@@ -66,14 +82,14 @@ python -m pytest -q
 ## 5. 创建第一个项目
 
 ```powershell
-meta-writing --workspace-dir . project create my-first-novel --mode manual --activate
+meta-writing --workspace-dir . project create my-first-novel --activate
 ```
 
 生成的结构：
 
 ```
 novels/my-first-novel/
-├── .meta-writing-project.json    {"name": ..., "workflow_mode": "manual"}
+├── .meta-writing-project.json    {"name": "my-first-novel"}
 ├── creator_guidance.md           模板，待填写
 ├── story_data/                   空
 └── chapters/                     空

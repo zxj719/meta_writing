@@ -38,7 +38,6 @@ total_planned_chapters: 100           # 可空
 current_chapter: 0                    # 最后完成的章号
 chapter_target_chars: 2000            # 可空，≥800
 chapter_min_chars: 1600               # 可空，≥500
-writer_provider: "minimax"            # minimax | deepseek
 ```
 
 | 字段 | 类型 | 默认 | 说明 |
@@ -52,7 +51,6 @@ writer_provider: "minimax"            # minimax | deepseek
 | `current_chapter` | int | `0` | 由编排层在落盘时推进 |
 | `chapter_target_chars` | int? | `None` | 约束 `ge=800`；为空则用 `TARGET_CHAPTER_CHARS=10000` |
 | `chapter_min_chars` | int? | `None` | 约束 `ge=500`；为空则用 `MIN_CHAPTER_CHARS=7000` |
-| `writer_provider` | str | `"minimax"` | 写手供应商 |
 
 > 后两项为空时的兜底值（10000 / 7000）远高于 `meta-writing init` 的默认提示（2000）。长期项目建议显式写死这两个字段。
 
@@ -164,7 +162,7 @@ is_pov: false
 
 年龄 = `current_chapter - setup_chapter`。达到 `foreshadowing_max_age_chapters - 5` 即触发 `⚠️ 即将到期!` 告警。
 
-> `priority` 字段在全仓库范围内**只被 schema 定义，无任何读写方**——压缩器、审稿提示词、两条链路都不引用它。它是预留字段。
+> `priority` 字段在全仓库范围内**只被 schema 定义，无任何读写方**——压缩器、审稿提示词、编排层都不引用它。它是预留字段。
 
 ---
 
@@ -186,7 +184,7 @@ tension_curve: [3.0, 4.5, 6.0]        # 逐章张力 0-10
 
 压缩器只取**未交付且章号 ≥ 当前章**的前 5 个 `beats`。
 
-> `hooks` 与 `tension_curve` 只写不读：自动链路的 `BibleUpdater` 会追加它们，但压缩器不读取，因此**它们不会进入任何 agent 的上下文**。目前仅作为人工复盘的记录。
+> `hooks` 与 `tension_curve` **当前无任何读写方**——压缩器不读取它们，因此不会进入任何 agent 的上下文。（此前由已移除的自动链路写入。）目前仅作为人工规划的记录字段。
 
 ---
 
@@ -214,7 +212,7 @@ word_count: 2143
 
 `characters_present` 有实际作用：压缩器在调用方未指定活跃角色时，从最近 3 章的这个字段取并集。**摘要缺失或角色名写错，会直接导致下一章的上下文选错角色。**
 
-> 手动链路自动写入的 `summary` 取自规划大纲前 200 字，非成稿摘要。修订幅度大时需人工修正，详见 [`../architecture/story-bible.md`](../architecture/story-bible.md)。
+> 编排层自动写入的 `summary` 取自规划大纲前 200 字，非成稿摘要。修订幅度大时需人工修正，详见 [`../architecture/story-bible.md`](../architecture/story-bible.md)。
 
 ---
 
@@ -223,10 +221,7 @@ word_count: 2143
 `.meta-writing-project.json`（不属于 Story Bible，但与其同级）：
 
 ```json
-{
-  "name": "rescue-male-lead",
-  "workflow_mode": "manual"
-}
+{ "name": "rescue-male-lead" }
 ```
 
-`workflow_mode` 取 `manual` 或 `automatic`，非法值抛 `ValueError`。文件缺失时 `read_project_metadata()` 返回 `None`，两条链路都视为不受限——**即模式互斥失效**。新建项目务必保留此文件。
+只记录项目名。文件缺失时 `read_project_metadata()` 返回 `None`，项目名回落为目录名。

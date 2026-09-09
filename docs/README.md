@@ -18,6 +18,7 @@
 | 质量不满意，想调审稿标准 | [`operations/editorial-scorecard-maintenance.md`](operations/editorial-scorecard-maintenance.md) |
 | 加一条文风规则 | [`reference/style-rules.md`](reference/style-rules.md) |
 | 加一位审稿 agent | [`architecture/agents.md`](architecture/agents.md) |
+| 换用别的智能体 CLI | [`architecture/agent-backend.md`](architecture/agent-backend.md) |
 
 ---
 
@@ -27,11 +28,11 @@
 
 | 文档 | 内容 |
 |------|------|
-| [`overview.md`](architecture/overview.md) | **总体设计**：四层架构、一章的生命周期、六条核心设计原则、稳健性策略 |
+| [`overview.md`](architecture/overview.md) | **总体设计**：四层架构、一章的生命周期、七条核心设计原则、稳健性策略 |
 | [`story-bible.md`](architecture/story-bible.md) | 状态层：数据模型、装载持久化、三级上下文压缩、状态更新路径 |
-| [`agents.md`](architecture/agents.md) | 智能体层：五个常驻 agent 的职责与契约、JSON 稳健性、如何扩展 |
-| [`pipelines.md`](architecture/pipelines.md) | 编排层：手动与自动两条链路的完整对比、工作流模式互斥、已知缺口 |
-| [`model-routing.md`](architecture/model-routing.md) | 三个 LLM client、按角色的模型分派、三级供应商回退、配置陷阱 |
+| [`agents.md`](architecture/agents.md) | 智能体层：五个 agent 的职责与契约、JSON 稳健性、如何扩展 |
+| [`pipelines.md`](architecture/pipelines.md) | 编排层：三个人工回调、流水线状态机、审稿-修订循环、已知缺口 |
+| [`agent-backend.md`](architecture/agent-backend.md) | 智能体探测、命令构造、温度语义化、错误处理、成本特征 |
 
 ---
 
@@ -56,7 +57,7 @@
 |------|------|
 | [`cli.md`](reference/cli.md) | 全部命令、选项、默认值、项目解析顺序 |
 | [`story-bible-schema.md`](reference/story-bible-schema.md) | 全部 YAML 字段、类型、默认值、枚举取值 |
-| [`configuration.md`](reference/configuration.md) | 环境变量、项目配置、代码常量、已知配置陷阱 |
+| [`configuration.md`](reference/configuration.md) | 智能体选择变量、项目配置、代码常量、已知配置陷阱 |
 | [`style-rules.md`](reference/style-rules.md) | Linter 全部规则、反例库、提示词禁止清单 |
 
 ---

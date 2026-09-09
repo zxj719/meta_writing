@@ -2,7 +2,7 @@
 
 > 代码位置：[`meta_writing/agents/`](../../meta_writing/agents/)
 
-系统有五个常驻 agent，分成生成侧与审稿侧。自动链路另有三个辅助 agent，定义在 [`auto_runner.py`](../../auto_runner.py) 内部。
+系统有五个 agent，分成生成侧与审稿侧。
 
 | Agent | 侧 | 职责 | 输出 | 温度 |
 |-------|-----|------|------|------|
@@ -14,13 +14,15 @@
 
 温度分层是明确的：生成侧要多样性（0.7–0.8），审稿侧要稳定可复现（0.3），修订要忠实于原文（0.5）。
 
+> 智能体 CLI 没有采样温度旋钮。这些数值现在被 [`AgentClient`](../../meta_writing/llm.py) **语义化**成 system prompt 末尾的一句指令，而不是真的调采样温度。agent 层照原样传值，无需改动。详见 [`agent-backend.md §4`](agent-backend.md)。
+
 ---
 
 ## 1. 通用契约
 
 所有 agent 遵循同一组约定：
 
-**构造**：`Agent(llm_client, model=...)`。agent 不自己创建 client——由编排层注入，这正是同一批 agent 能在两条链路上跑不同模型路由的原因。
+**构造**：`Agent(llm: AgentClient, model=None)`。agent 不自己创建 client——由编排层注入。`model` 保留在签名里但被智能体后端忽略：模型由当前智能体会话决定。
 
 **system prompt 组装**：每个 agent 暴露一个 `build_*_system_prompt(prompt_profile)` 函数，把基础提示词与风格档案的追加段落拼接：
 
@@ -101,7 +103,7 @@ return await self.expand(..., target_chars=target_chars)
 
 最后一项是最容易被忽视也最致命的：*"角色说出口或做出来的判断，是否真有合理的信息来源"*。提示词里写死了对应的判断标准：**"作者知道"不等于"角色知道"，严格区分**。
 
-除 issues 外，它还负责检出 `state_changes_detected`——这是手动链路更新角色状态的**唯一自动来源**。
+除 issues 外，它还负责检出 `state_changes_detected`——这是自动更新角色状态的**唯一来源**。
 
 解析失败时的降级值得注意：
 
@@ -152,21 +154,8 @@ prev_ending = prev_text[-400:] if len(prev_text) > 400 else prev_text
 
 ---
 
-## 4. 自动链路专属 agent
 
-以下三个定义在 [`auto_runner.py`](../../auto_runner.py) 内，替代手动链路中的人工环节：
-
-| Agent | 替代的人工环节 | 输出 |
-|-------|---------------|------|
-| `BranchSelector` | 终端里选分支 | 分支序号 + 选择理由 |
-| `BibleUpdater` | 确认并写回状态变更 | 直接写 Story Bible YAML |
-| `LessonAccumulator` | 人手写 `learned_rules.md` | 追加新规则 |
-
-另有一个非 agent 的机制 `CarryoverCorrection`：把上一章审稿中未解决的问题序列化到 `.auto_runner_correction.json`，在下一章生成时**置于创作指导最前**。这让自动循环具备跨章自我纠偏能力——手动链路没有对应物，因为人会自己记得上一章的问题。
-
----
-
-## 5. 扩展一个新 agent
+## 4. 扩展一个新 agent
 
 如果要加第四位审稿人，需要动四个地方：
 
@@ -175,4 +164,4 @@ prev_ending = prev_text[-400:] if len(prev_text) > 400 else prev_text
 3. **接进阻塞判定**：在 `blockers` 与 `review_passed` 的布尔表达式里加入新条件
 4. **反馈拼接**：在 `feedback_parts` 里追加 `result.format_feedback()`
 
-自动链路需要同样的四步。**两条链路的审稿逻辑目前是各自实现的，没有共享抽象**——这是当前架构最主要的重复点，加审稿人时必须两边都改。
+审稿逻辑集中在 `Orchestrator.generate_chapter()` 一处，改动不需要在别处同步。
