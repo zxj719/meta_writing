@@ -417,3 +417,60 @@ def detect_agent(env: Mapping[str, str] | None = None) -> AgentSpec:
             return AgentSpec(kind=kind, argv=(path,))
 
     raise AgentNotFoundError(_AGENT_HELP)
+
+
+CLAUDE_DISALLOWED_TOOLS = (
+    "Bash", "Edit", "Write", "Read", "Glob", "Grep", "WebFetch", "WebSearch", "Task",
+)
+
+_TEMPERATURE_STABLE = "判断要稳定克制，同一份输入应给出一致结论，不要为了求新而改判。"
+_TEMPERATURE_FAITHFUL = "在忠实原文的前提下做必要改动，不要借机重写。"
+_TEMPERATURE_DIVERGENT = "允许大胆发散；若需要给出多个选项，选项之间必须有明显差异。"
+
+
+def _temperature_directive(temperature: float) -> str:
+    """把采样温度翻译成一句提示词指令。
+
+    智能体 CLI 没有温度旋钮。这不等价于采样温度，只是保住
+    「审稿要稳、规划要散」的分层意图。
+    """
+    if temperature <= 0.35:
+        return _TEMPERATURE_STABLE
+    if temperature <= 0.6:
+        return _TEMPERATURE_FAITHFUL
+    return _TEMPERATURE_DIVERGENT
+
+
+def compose_system_prompt(system: str, temperature: float) -> str:
+    return f"{system.strip()}\n\n## 输出稳定性\n\n{_temperature_directive(temperature)}"
+
+
+def build_agent_command(
+    spec: AgentSpec,
+    system: str,
+    prompt: str,
+    temperature: float,
+) -> tuple[list[str], str]:
+    """构造 argv 与 stdin 文本。
+
+    claude 支持 --system-prompt；codex 与 custom 不支持，system 并进 stdin。
+    命令中不含 --bare（会绕开 OAuth 登录态）与 --model（由当前会话决定）。
+    """
+    system_prompt = compose_system_prompt(system, temperature)
+
+    if spec.kind == "claude":
+        argv = [
+            *spec.argv,
+            "-p",
+            "--output-format", "json",
+            "--system-prompt", system_prompt,
+            "--disallowed-tools", *CLAUDE_DISALLOWED_TOOLS,
+        ]
+        return argv, prompt
+
+    if spec.kind == "codex":
+        argv = [*spec.argv, "exec", "--skip-git-repo-check"]
+    else:
+        argv = list(spec.argv)
+
+    return argv, f"{system_prompt}\n\n---\n\n{prompt}"
