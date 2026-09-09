@@ -2,7 +2,7 @@
 
 > 日期：2026-09-09
 > 范围：`meta_writing` 仓库。**不涉及** wolfgame 的 Web 工作台、Worker、ECS 部署。
-> 状态：待评审
+> 状态：已评审通过（2026-09-09）
 
 ---
 
@@ -333,8 +333,12 @@ rg -in "minimax|deepseek|anthropic|claude-opus|claude-sonnet" meta_writing/ scri
 
 ---
 
-## 10. 待评审确认
+## 10. 评审决议（2026-09-09）
 
-1. **§5.5**：`workflow_mode` 整体移除，还是保留字段只留 `manual` 一个值？（本设计选前者）
-2. **§4.3**：Claude Code 调用是否要禁用全部工具？（本设计选禁用；若你希望 agent 能自己读 Story Bible 文件，则应放开 Read/Glob/Grep）
-3. **§4.4**：温度语义化的三段措辞是否合适？
+| # | 议题 | 决议 |
+|---|------|------|
+| 1 | §5.5 `workflow_mode` 的去留 | **整体移除**。连同 `project mode` 子命令、`--mode` 选项、`project list` 的模式显示、orchestrator 的模式守卫一并删除。已知这是单向决定 |
+| 2 | §4.3 是否禁用 agent 工具 | **禁用全部工具**。这些是纯文本生成调用，agent 不得读写文件，尤其不得擅自改 Story Bible |
+| 3 | §4.4 温度语义化措辞 | **按原案采用** |
+
+三项均已确认，设计冻结，可进入实现计划。
